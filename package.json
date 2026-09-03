@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check:sample": "node scripts/check-sample-route.mjs",
     "import:gtfs": "node scripts/import-gtfs.mjs",
     "serve": "node scripts/serve.mjs"
   }

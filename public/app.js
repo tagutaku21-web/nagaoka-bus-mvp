@@ -3,6 +3,7 @@ const state = {
   origin: null,
   destination: null,
   stopById: new Map(),
+  stopIdsByName: new Map(),
   pins: new Map()
 };
 
@@ -15,6 +16,7 @@ const els = {
   rideTime: document.querySelector("#ride-time"),
   originLabel: document.querySelector("#origin-label"),
   destinationLabel: document.querySelector("#destination-label"),
+  sampleRouteButton: document.querySelector("#sample-route-button"),
   searchButton: document.querySelector("#search-button"),
   result: document.querySelector("#result"),
   resultEmpty: document.querySelector("#result-empty"),
@@ -47,6 +49,16 @@ function formatGtfsTime(minutes) {
   return dayOffset > 0 ? `${label}+${dayOffset}日` : label;
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
 function selectedDateTime() {
   const [year, month, day] = els.rideDate.value.split("-").map(Number);
   const [hour, minute] = els.rideTime.value.split(":").map(Number);
@@ -75,15 +87,65 @@ function activeServiceIds(date) {
 }
 
 function normalize(text) {
-  return String(text).toLowerCase().replace(/\s+/g, "");
+  return String(text)
+    .toLowerCase()
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
+    .replace(/\s+/g, "");
+}
+
+const searchAliases = [
+  ["長岡駅大手口", "長岡駅前"],
+  ["長岡駅", "長岡駅前"],
+  ["長岡赤十字病院", "日赤病院前"],
+  ["赤十字病院", "日赤病院前"],
+  ["日赤", "日赤病院前"]
+];
+
+function expandSearchTerms(query) {
+  const term = normalize(query);
+  if (!term) return [];
+
+  const terms = new Set([term]);
+  for (const [alias, stopName] of searchAliases) {
+    const normalizedAlias = normalize(alias);
+    if (term.includes(normalizedAlias)) {
+      terms.add(normalize(stopName));
+    }
+  }
+  return [...terms];
+}
+
+function stopGroupIds(stop) {
+  return state.stopIdsByName.get(stop.name) || [stop.id];
+}
+
+function uniqueStopsByName(stops) {
+  const seen = new Set();
+  const unique = [];
+  for (const stop of stops) {
+    if (seen.has(stop.name)) continue;
+    seen.add(stop.name);
+    unique.push(stop);
+  }
+  return unique;
+}
+
+function stopBadge(stop) {
+  const sameNameCount = stopGroupIds(stop).length;
+  if (sameNameCount <= 1) return "";
+  return `${sameNameCount}乗り場`;
 }
 
 function findStops(query, pool = state.data.stops) {
-  const term = normalize(query);
-  if (!term) return [];
-  return pool
-    .filter((stop) => normalize(stop.name).includes(term) || normalize(stop.code).includes(term))
-    .slice(0, 24);
+  const terms = expandSearchTerms(query);
+  if (!terms.length) return [];
+
+  const matches = pool.filter((stop) => {
+    const fields = [stop.name, stop.code, stop.description].map(normalize);
+    return terms.some((term) => fields.some((field) => field.includes(term)));
+  });
+
+  return uniqueStopsByName(matches).slice(0, 24);
 }
 
 function renderCandidates(container, stops, onPick) {
@@ -92,7 +154,8 @@ function renderCandidates(container, stops, onPick) {
   for (const stop of stops) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = stop.name;
+    const badge = stopBadge(stop);
+    button.textContent = badge ? `${stop.name}（${badge}）` : stop.name;
     button.addEventListener("click", () => onPick(stop));
     container.append(button);
   }
@@ -113,8 +176,8 @@ function selectOrigin(stop) {
   for (const pin of state.pins.values()) pin.classList.remove("selected");
   state.pins.get(stop.id)?.classList.add("selected");
 
-  const destinationIds = state.data.directDestinations[stop.id] || [];
-  const destinations = destinationIds.map((id) => state.stopById.get(id)).filter(Boolean);
+  const destinationIds = new Set(stopGroupIds(stop).flatMap((id) => state.data.directDestinations[id] || []));
+  const destinations = uniqueStopsByName([...destinationIds].map((id) => state.stopById.get(id)).filter(Boolean));
   const top = destinations.slice(0, 10).map((item) => item.name).join("、");
   els.status.textContent = destinations.length
     ? `この停留所から直通で行ける候補が ${destinations.length} 件あります。例: ${top}`
@@ -126,6 +189,29 @@ function selectDestination(stop) {
   state.destination = stop;
   els.destinationSearch.value = stop.name;
   updateLabels();
+}
+
+function findStopByName(name) {
+  return state.data.stops.find((stop) => stop.name === name) || null;
+}
+
+function useSampleRoute() {
+  if (!state.data) {
+    els.status.textContent = "GTFSデータを読み込み中です。少し待ってからもう一度押してください。";
+    return;
+  }
+
+  const origin = findStopByName("長岡駅前");
+  const destination = findStopByName("日赤病院前");
+  if (!origin || !destination) {
+    els.status.textContent = "検証用ルートの停留所が見つかりませんでした。GTFSデータを確認してください。";
+    return;
+  }
+
+  selectOrigin(origin);
+  selectDestination(destination);
+  renderResult();
+  els.result.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function plotStops() {
@@ -158,16 +244,18 @@ function plotStops() {
 function findDepartures(originId, destinationId, date) {
   const serviceIds = activeServiceIds(date);
   const nowMinutes = date.getHours() * 60 + date.getMinutes();
+  const originIds = new Set(stopGroupIds(state.stopById.get(originId) || state.origin));
+  const destinationIds = new Set(stopGroupIds(state.stopById.get(destinationId) || state.destination));
   const results = [];
 
   for (const [tripId, times] of Object.entries(state.data.stopTimesByTrip)) {
     const trip = state.data.trips[tripId];
     if (!trip || !serviceIds.has(trip.serviceId)) continue;
 
-    const originIndex = times.findIndex((time) => time.stopId === originId);
+    const originIndex = times.findIndex((time) => originIds.has(time.stopId));
     if (originIndex < 0) continue;
 
-    const destinationIndex = times.findIndex((time, index) => index > originIndex && time.stopId === destinationId);
+    const destinationIndex = times.findIndex((time, index) => index > originIndex && destinationIds.has(time.stopId));
     if (destinationIndex < 0) continue;
 
     const originTime = times[originIndex];
@@ -176,12 +264,16 @@ function findDepartures(originId, destinationId, date) {
     if (departMinutes < nowMinutes) continue;
 
     const route = state.data.routes[trip.routeId] || {};
+    const actualOrigin = state.stopById.get(originTime.stopId) || state.origin;
+    const actualDestination = state.stopById.get(destinationTime.stopId) || state.destination;
     results.push({
       trip,
       route,
       departure: departMinutes,
       arrival: parseGtfsTime(destinationTime.arrival),
-      platform: state.origin.platform,
+      originStop: actualOrigin,
+      destinationStop: actualDestination,
+      platform: actualOrigin.platform,
       headsign: originTime.headsign || trip.headsign,
       stopCount: destinationIndex - originIndex
     });
@@ -213,13 +305,24 @@ function renderResult() {
 
   els.result.innerHTML = `
     <div class="next-card">
-      <p class="meta">${state.origin.name} → ${state.destination.name}</p>
+      <p class="trip-label">${escapeHtml(state.origin.name)} → ${escapeHtml(state.destination.name)}</p>
       <h2>次のバスまで</h2>
       <p class="countdown">${next.departure - nowMinutes}<span>分</span></p>
-      <p><strong>${formatGtfsTime(next.departure)}発</strong> / ${formatGtfsTime(next.arrival)}着 / 約${rideMinutes}分</p>
-      <p class="route-name">${routeName}</p>
-      <p class="meta">${next.headsign ? `行先: ${next.headsign}<br>` : ""}${next.platform ? `${next.platform}番乗り場<br>` : ""}${next.stopCount}停留所</p>
-      ${later.length ? `<div class="later"><strong>次の便</strong>${later.map((item) => `<p class="meta">${item.departure - nowMinutes}分後 ${formatGtfsTime(item.departure)}発</p>`).join("")}</div>` : ""}
+      <p class="time-main"><strong>${formatGtfsTime(next.departure)}発</strong> / ${formatGtfsTime(next.arrival)}着 / 約${rideMinutes}分</p>
+      <p class="route-name">${escapeHtml(routeName)}</p>
+      <dl class="trip-detail">
+        ${next.headsign ? `<div><dt>行先</dt><dd>${escapeHtml(next.headsign)}</dd></div>` : ""}
+        ${next.platform ? `<div><dt>乗り場</dt><dd>${escapeHtml(next.platform)}番</dd></div>` : ""}
+        <div><dt>停留所</dt><dd>${escapeHtml(next.originStop.id)} → ${escapeHtml(next.destinationStop.id)}</dd></div>
+        <div><dt>停車数</dt><dd>${next.stopCount}停留所</dd></div>
+      </dl>
+      ${later.length ? `<div class="later"><strong>次の便</strong>${later.map((item) => `
+        <div class="later-row">
+          <span>${item.departure - nowMinutes}分後</span>
+          <strong>${formatGtfsTime(item.departure)}発</strong>
+          <small>${escapeHtml(item.originStop.id)} → ${escapeHtml(item.destinationStop.id)}</small>
+        </div>
+      `).join("")}</div>` : ""}
     </div>
   `;
 }
@@ -236,12 +339,15 @@ function wireSearch() {
   });
 
   els.destinationSearch.addEventListener("input", () => {
-    const destinationIds = state.origin ? state.data.directDestinations[state.origin.id] || [] : [];
-    const pool = destinationIds.map((id) => state.stopById.get(id)).filter(Boolean);
+    const destinationIds = state.origin
+      ? new Set(stopGroupIds(state.origin).flatMap((id) => state.data.directDestinations[id] || []))
+      : new Set();
+    const pool = uniqueStopsByName([...destinationIds].map((id) => state.stopById.get(id)).filter(Boolean));
     renderCandidates(destinationCandidates, findStops(els.destinationSearch.value, pool.length ? pool : state.data.stops), selectDestination);
   });
 
   els.searchButton.addEventListener("click", renderResult);
+  els.sampleRouteButton.addEventListener("click", useSampleRoute);
 }
 
 async function init() {
@@ -251,6 +357,11 @@ async function init() {
   const response = await fetch("./data/gtfs-index.json");
   state.data = await response.json();
   state.stopById = new Map(state.data.stops.map((stop) => [stop.id, stop]));
+  state.stopIdsByName = new Map();
+  for (const stop of state.data.stops) {
+    if (!state.stopIdsByName.has(stop.name)) state.stopIdsByName.set(stop.name, []);
+    state.stopIdsByName.get(stop.name).push(stop.id);
+  }
 
   plotStops();
   wireSearch();

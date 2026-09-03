@@ -82,6 +82,26 @@ label {
   font-weight: 700;
 }
 
+.quick-route {
+  margin-bottom: 18px;
+}
+
+.quick-route button {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(15, 47, 95, 0.22);
+  border-radius: 8px;
+  background: #fff8e7;
+  color: var(--brand);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.quick-route button:hover {
+  border-color: var(--brand-2);
+  background: #fff3d2;
+}
+
 input {
   width: 100%;
   border: 1px solid var(--line);
@@ -204,6 +224,13 @@ input:focus {
   background: #fff;
 }
 
+.trip-label {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .countdown {
   margin: 6px 0 2px;
   font-size: 58px;
@@ -217,9 +244,38 @@ input:focus {
   font-size: 20px;
 }
 
+.time-main {
+  margin-bottom: 10px;
+}
+
 .route-name {
   margin: 12px 0 0;
   font-weight: 800;
+}
+
+.trip-detail {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.trip-detail div {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 10px;
+}
+
+.trip-detail dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.trip-detail dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .meta {
@@ -231,6 +287,30 @@ input:focus {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--line);
+}
+
+.later-row {
+  display: grid;
+  grid-template-columns: 72px 82px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.later-row:last-child {
+  border-bottom: 0;
+}
+
+.later-row span {
+  color: var(--good);
+  font-weight: 800;
+}
+
+.later-row small {
+  min-width: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .candidate-list {
@@ -263,12 +343,30 @@ input:focus {
     padding: 18px;
   }
 
+  .search-panel {
+    order: 1;
+  }
+
   .map-panel {
-    min-height: 48vh;
-    order: -1;
+    min-height: 34vh;
+    order: 2;
+  }
+
+  .result-panel {
+    order: 3;
   }
 
   h1 {
     font-size: 24px;
+    margin-bottom: 16px;
+  }
+
+  .countdown {
+    font-size: 54px;
+  }
+
+  .later-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 }

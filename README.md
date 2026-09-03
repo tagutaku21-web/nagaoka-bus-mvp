@@ -25,16 +25,25 @@
 
 長岡市公式ページでは公共交通GTFSデータがオープンデータとして案内されています。越後交通のGTFSは「ながおかバスi」側で公開されています。
 
-1. GTFS ZIPを入手する
-2. ZIPを展開する
-3. 展開したフォルダを `GTFS_DIR` に指定して取り込む
+今回の検証では、以下のURLから越後交通 長岡地区GTFSを取得しました。
 
 ```bash
-GTFS_DIR=/path/to/extracted/gtfs npm run import:gtfs
+mkdir -p data/raw data/gtfs/nagaoka
+curl -L --fail --show-error --output data/raw/nagaoka-gtfs.zip https://bus-vision.jp/gtfs_v2/nagaoka/gtfsFeed
+unzip -oq data/raw/nagaoka-gtfs.zip -d data/gtfs/nagaoka
+GTFS_DIR=data/gtfs/nagaoka npm run import:gtfs
 npm run serve
 ```
 
 ブラウザで `http://localhost:4173` を開きます。
+
+`data/` は作業用の取得・展開場所です。公開するアプリは `public/data/gtfs-index.json` を読み込みます。
+
+基準ルートが取り込めているかは、以下で確認できます。
+
+```bash
+npm run check:sample
+```
 
 ## 最初の検証
 
@@ -43,6 +52,8 @@ npm run serve
 - 出発: 長岡駅大手口
 - 目的地: 長岡赤十字病院、または日赤病院前に相当する停留所
 - 表示される次便・次々便が公式時刻表と一致すること
+
+アプリ内では、まず `長岡駅大手口` を `長岡駅前`、`長岡赤十字病院` を `日赤病院前` として検索できるようにしています。同名の複数乗り場はまとめて直通便を探します。
 
 ## ファイル構成
 

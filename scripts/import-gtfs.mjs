@@ -102,6 +102,7 @@ const stops = stopsRaw
     id: stop.stop_id,
     code: stop.stop_code || "",
     name: stop.stop_name,
+    description: stop.stop_desc || "",
     lat: Number(stop.stop_lat),
     lon: Number(stop.stop_lon),
     platform: stop.platform_code || ""
