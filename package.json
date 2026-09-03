@@ -1,0 +1,10 @@
+{
+  "name": "nagaoka-bus-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "import:gtfs": "node scripts/import-gtfs.mjs",
+    "serve": "node scripts/serve.mjs"
+  }
+}

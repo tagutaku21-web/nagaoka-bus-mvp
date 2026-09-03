@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>長岡バスMVP まず見る</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f4f7fb;
+        color: #101828;
+      }
+      .wrap {
+        display: grid;
+        grid-template-columns: 360px 1fr 360px;
+        min-height: 100vh;
+      }
+      .side, .result {
+        background: white;
+        padding: 24px;
+        border-right: 1px solid #d0d5dd;
+      }
+      .result {
+        border-right: 0;
+        border-left: 1px solid #d0d5dd;
+      }
+      .map {
+        position: relative;
+        overflow: hidden;
+        background:
+          linear-gradient(90deg, rgba(15, 47, 95, .08) 1px, transparent 1px),
+          linear-gradient(rgba(15, 47, 95, .08) 1px, transparent 1px),
+          #eaf2f6;
+        background-size: 48px 48px;
+      }
+      h1 {
+        margin: 0 0 22px;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+      label {
+        display: block;
+        margin: 14px 0 6px;
+        color: #667085;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      select, button {
+        width: 100%;
+        min-height: 46px;
+        border-radius: 8px;
+        font: inherit;
+      }
+      select {
+        border: 1px solid #d0d5dd;
+        padding: 10px 12px;
+        background: white;
+      }
+      button {
+        margin-top: 18px;
+        border: 0;
+        background: #0f2f5f;
+        color: white;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .note {
+        margin-top: 16px;
+        color: #667085;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .pin {
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 3px solid white;
+        background: #0f2f5f;
+        box-shadow: 0 3px 10px rgba(0,0,0,.25);
+        transform: translate(-50%, -50%);
+      }
+      .pin::after {
+        content: attr(data-name);
+        position: absolute;
+        left: 22px;
+        top: -8px;
+        white-space: nowrap;
+        background: white;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 5px 8px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .card {
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 18px;
+        background: white;
+      }
+      .count {
+        margin: 8px 0;
+        font-size: 58px;
+        line-height: 1;
+        color: #0b6b4f;
+        font-weight: 900;
+      }
+      .count span { font-size: 20px; }
+      .muted {
+        color: #667085;
+        line-height: 1.6;
+      }
+      @media (max-width: 900px) {
+        .wrap { grid-template-columns: 1fr; }
+        .map { min-height: 48vh; order: -1; }
+        .side, .result { border: 0; padding: 18px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="side">
+        <p class="muted">長岡バス直感検索 MVP見本</p>
+        <h1>バス停を選んで、次のバスを見る</h1>
+
+        <label for="from">出発バス停</label>
+        <select id="from">
+          <option>長岡駅 大手口</option>
+          <option>長岡駅 東口</option>
+          <option>宮内駅前</option>
+        </select>
+
+        <label for="to">目的地</label>
+        <select id="to">
+          <option>日赤病院前</option>
+          <option>リバーサイド千秋</option>
+          <option>長岡技術科学大学</option>
+        </select>
+
+        <button id="show" type="button">次のバスを見る</button>
+        <p class="note">これは画面確認用のサンプルです。実際の時刻ではありません。GTFSを入れると本物の停留所・時刻に置き換わります。</p>
+      </section>
+
+      <section class="map">
+        <div class="pin" style="left:48%;top:47%;" data-name="長岡駅 大手口"></div>
+        <div class="pin" style="left:38%;top:37%;" data-name="日赤病院前"></div>
+        <div class="pin" style="left:30%;top:42%;" data-name="リバーサイド千秋"></div>
+        <div class="pin" style="left:65%;top:68%;" data-name="宮内駅前"></div>
+        <div class="pin" style="left:58%;top:76%;" data-name="長岡技術科学大学"></div>
+      </section>
+
+      <section class="result">
+        <div id="result" class="card">
+          <p class="muted">長岡駅 大手口 → 日赤病院前</p>
+          <h2>次のバスまで</h2>
+          <p class="count">8<span>分</span></p>
+          <p><strong>14:32発</strong> / 14:47着 / 約15分</p>
+          <p><strong>中央循環方面</strong></p>
+          <p class="muted">次の便: 29分後 14:53発</p>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const result = document.querySelector("#result");
+      document.querySelector("#show").addEventListener("click", () => {
+        const from = document.querySelector("#from").value;
+        const to = document.querySelector("#to").value;
+        result.innerHTML = `
+          <p class="muted">${from} → ${to}</p>
+          <h2>次のバスまで</h2>
+          <p class="count">8<span>分</span></p>
+          <p><strong>14:32発</strong> / 14:47着 / 約15分</p>
+          <p><strong>サンプル路線</strong></p>
+          <p class="muted">次の便: 29分後 14:53発</p>
+        `;
+      });
+    </script>
+  </body>
+</html>
