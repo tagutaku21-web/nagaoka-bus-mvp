@@ -6,7 +6,8 @@ const state = {
   stopIdsByName: new Map(),
   markers: new Map(),
   map: null,
-  markerLayer: null
+  markerLayer: null,
+  userMarker: null
 };
 
 const els = {
@@ -19,6 +20,7 @@ const els = {
   originLabel: document.querySelector("#origin-label"),
   destinationLabel: document.querySelector("#destination-label"),
   sampleRouteButton: document.querySelector("#sample-route-button"),
+  currentLocationButton: document.querySelector("#current-location-button"),
   destinationPresets: document.querySelectorAll("[data-destination]"),
   searchButton: document.querySelector("#search-button"),
   result: document.querySelector("#result"),
@@ -142,6 +144,22 @@ function stopBadge(stop) {
   return `${sameNameCount}乗り場`;
 }
 
+function distanceMeters(from, to) {
+  const earthRadius = 6371000;
+  const fromLat = from.lat * Math.PI / 180;
+  const toLat = to.lat * Math.PI / 180;
+  const latDiff = (to.lat - from.lat) * Math.PI / 180;
+  const lonDiff = (to.lon - from.lon) * Math.PI / 180;
+  const a = Math.sin(latDiff / 2) ** 2
+    + Math.cos(fromLat) * Math.cos(toLat) * Math.sin(lonDiff / 2) ** 2;
+  return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistance(meters) {
+  if (meters < 1000) return `約${Math.round(meters / 10) * 10}m`;
+  return `約${(meters / 1000).toFixed(1)}km`;
+}
+
 function findStops(query, pool = state.data.stops) {
   const terms = expandSearchTerms(query);
   if (!terms.length) return [];
@@ -173,11 +191,12 @@ function updateLabels() {
   els.searchButton.disabled = !state.origin || !state.destination;
 }
 
-function selectOrigin(stop) {
+function selectOrigin(stop, options = {}) {
+  const previousDestination = state.destination;
   state.origin = stop;
-  state.destination = null;
+  state.destination = options.keepDestination ? previousDestination : null;
   els.originSearch.value = stop.name;
-  els.destinationSearch.value = "";
+  if (!options.keepDestination) els.destinationSearch.value = "";
 
   updateMarkerStyles();
   const marker = state.markers.get(stop.id);
@@ -248,6 +267,87 @@ function useDestinationPreset(stopName) {
   }
 
   els.status.textContent = `${destination.name} を目的地にしました。出発バス停を選んでください。`;
+}
+
+function nearestStop(position) {
+  const current = {
+    lat: position.coords.latitude,
+    lon: position.coords.longitude
+  };
+
+  return state.data.stops
+    .map((stop) => ({
+      stop,
+      distance: distanceMeters(current, stop)
+    }))
+    .sort((a, b) => a.distance - b.distance)[0] || null;
+}
+
+function showUserLocation(position) {
+  if (!state.map) return;
+
+  const latLng = [position.coords.latitude, position.coords.longitude];
+  if (!state.userMarker) {
+    state.userMarker = L.circleMarker(latLng, {
+      radius: 9,
+      color: "#ffffff",
+      weight: 3,
+      fillColor: "#0b6b4f",
+      fillOpacity: 0.95
+    }).addTo(state.map);
+    state.userMarker.bindTooltip("現在地");
+  } else {
+    state.userMarker.setLatLng(latLng);
+  }
+}
+
+function useCurrentLocation() {
+  if (!state.data) {
+    els.status.textContent = "GTFSデータを読み込み中です。少し待ってからもう一度押してください。";
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    els.status.textContent = "このブラウザでは現在地を取得できません。出発バス停を入力してください。";
+    return;
+  }
+
+  els.currentLocationButton.disabled = true;
+  els.status.textContent = "現在地を確認しています。ブラウザの許可が出たら許可してください。";
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const nearest = nearestStop(position);
+      els.currentLocationButton.disabled = false;
+
+      if (!nearest) {
+        els.status.textContent = "近くのバス停を見つけられませんでした。";
+        return;
+      }
+
+      showUserLocation(position);
+      selectOrigin(nearest.stop, { keepDestination: Boolean(state.destination) });
+      const marker = state.markers.get(nearest.stop.id);
+      if (marker && state.map) {
+        state.map.setView(marker.getLatLng(), Math.max(state.map.getZoom(), 15), { animate: true });
+      }
+      els.status.textContent = `最寄り候補は ${nearest.stop.name}（${formatDistance(nearest.distance)}）です。`;
+
+      if (state.destination) {
+        renderResult();
+        els.result.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    },
+    () => {
+      els.currentLocationButton.disabled = false;
+      els.status.textContent = "現在地を取得できませんでした。出発バス停を入力してください。";
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 60000
+    }
+  );
 }
 
 function markerStyle(stop) {
@@ -410,6 +510,7 @@ function wireSearch() {
 
   els.searchButton.addEventListener("click", renderResult);
   els.sampleRouteButton.addEventListener("click", useSampleRoute);
+  els.currentLocationButton.addEventListener("click", useCurrentLocation);
   for (const button of els.destinationPresets) {
     button.addEventListener("click", () => useDestinationPreset(button.dataset.destination));
   }
