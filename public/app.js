@@ -238,6 +238,46 @@ function selectDestination(stop) {
   updateLabels();
 }
 
+function openStopPicker(stop, latLng) {
+  if (!state.map) return;
+
+  const panel = document.createElement("div");
+  panel.className = "stop-picker";
+
+  const title = document.createElement("strong");
+  title.textContent = stop.name;
+  panel.append(title);
+
+  const actions = document.createElement("div");
+  actions.className = "stop-picker-actions";
+
+  const originButton = document.createElement("button");
+  originButton.type = "button";
+  originButton.textContent = "出発にする";
+  originButton.addEventListener("click", () => {
+    selectOrigin(stop, { keepDestination: Boolean(state.destination) });
+    state.map.closePopup();
+    if (state.destination) renderResult();
+  });
+
+  const destinationButton = document.createElement("button");
+  destinationButton.type = "button";
+  destinationButton.textContent = "目的地にする";
+  destinationButton.addEventListener("click", () => {
+    selectDestination(stop);
+    state.map.closePopup();
+    if (state.origin) renderResult();
+  });
+
+  actions.append(originButton, destinationButton);
+  panel.append(actions);
+
+  L.popup({ closeButton: true, autoPan: true })
+    .setLatLng(latLng)
+    .setContent(panel)
+    .openOn(state.map);
+}
+
 function swapStops() {
   if (!state.origin || !state.destination) return;
 
@@ -398,7 +438,7 @@ function selectNearestMarker(event) {
   }
 
   if (nearest?.marker.representativeStop) {
-    selectOrigin(nearest.marker.representativeStop);
+    openStopPicker(nearest.marker.representativeStop, nearest.marker.getLatLng());
   }
 }
 
@@ -458,7 +498,10 @@ function plotStops() {
     const marker = L.circleMarker([lat, lon], markerStyle(stopName));
     marker.representativeStop = representative;
     marker.bindTooltip(`${stopName}${badge}`);
-    marker.on("click", () => selectOrigin(representative));
+    marker.on("click", (event) => {
+      L.DomEvent.stopPropagation(event);
+      openStopPicker(representative, marker.getLatLng());
+    });
     marker.addTo(state.markerLayer);
     state.markers.set(stopName, marker);
     bounds.push([lat, lon]);
