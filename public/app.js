@@ -2,6 +2,7 @@ const state = {
   data: null,
   origin: null,
   destination: null,
+  destinationDisplayName: "",
   stopById: new Map(),
   stopIdsByName: new Map(),
   markers: new Map(),
@@ -201,7 +202,9 @@ function renderCandidates(container, stops, onPick) {
 
 function updateLabels() {
   els.originLabel.textContent = state.origin ? state.origin.name : "地図か検索で選ぶ";
-  els.destinationLabel.textContent = state.destination ? state.destination.name : "目的地ボタンか検索で選ぶ";
+  els.destinationLabel.textContent = state.destination
+    ? destinationTitle()
+    : "目的地ボタンか検索で選ぶ";
   els.originSummary.classList.toggle("is-set", Boolean(state.origin));
   els.destinationSummary.classList.toggle("is-set", Boolean(state.destination));
   els.searchButton.disabled = !state.origin || !state.destination;
@@ -216,8 +219,10 @@ function updateLabels() {
 
 function selectOrigin(stop, options = {}) {
   const previousDestination = state.destination;
+  const previousDestinationDisplayName = state.destinationDisplayName;
   state.origin = stop;
   state.destination = options.keepDestination ? previousDestination : null;
+  state.destinationDisplayName = options.keepDestination ? previousDestinationDisplayName : "";
   els.originSearch.value = stop.name;
   if (!options.keepDestination) els.destinationSearch.value = "";
 
@@ -238,8 +243,9 @@ function selectOrigin(stop, options = {}) {
   updateLabels();
 }
 
-function selectDestination(stop) {
+function selectDestination(stop, options = {}) {
   state.destination = stop;
+  state.destinationDisplayName = options.displayName || "";
   els.destinationSearch.value = stop.name;
   clearRouteSigns();
   updateMarkerStyles();
@@ -297,6 +303,7 @@ function swapStops() {
   const previousOrigin = state.origin;
   state.origin = state.destination;
   state.destination = previousOrigin;
+  state.destinationDisplayName = "";
   els.originSearch.value = state.origin.name;
   els.destinationSearch.value = state.destination.name;
   updateMarkerStyles();
@@ -306,6 +313,14 @@ function swapStops() {
 
 function findStopByName(name) {
   return state.data.stops.find((stop) => stop.name === name) || null;
+}
+
+function destinationTitle() {
+  if (!state.destination) return "";
+  if (!state.destinationDisplayName || state.destinationDisplayName === state.destination.name) {
+    return state.destination.name;
+  }
+  return `${state.destinationDisplayName}（最寄り: ${state.destination.name}）`;
 }
 
 function useSampleRoute() {
@@ -327,7 +342,7 @@ function useSampleRoute() {
   els.result.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function useDestinationPreset(stopName) {
+function useDestinationPreset(stopName, displayName = stopName) {
   if (!state.data) {
     els.status.textContent = "GTFSデータを読み込み中です。少し待ってからもう一度押してください。";
     return;
@@ -344,14 +359,14 @@ function useDestinationPreset(stopName) {
     if (defaultOrigin) selectOrigin(defaultOrigin);
   }
 
-  selectDestination(destination);
+  selectDestination(destination, { displayName });
   if (state.origin) {
     renderResult();
     els.result.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
 
-  els.status.textContent = `${destination.name} を目的地にしました。出発バス停を選んでください。`;
+  els.status.textContent = `${destinationTitle()} を目的地にしました。出発バス停を選んでください。`;
 }
 
 function nearestStop(position) {
@@ -782,7 +797,7 @@ function renderResult() {
 
   els.result.innerHTML = `
     <div class="next-card">
-      <p class="trip-label">${escapeHtml(state.origin.name)} → ${escapeHtml(state.destination.name)}</p>
+      <p class="trip-label">${escapeHtml(state.origin.name)} → ${escapeHtml(destinationTitle())}</p>
       <h2>次のバスまで</h2>
       <p class="countdown">${next.departure - nowMinutes}<span>分</span></p>
       <p class="time-main"><strong>${formatGtfsTime(next.departure)}発</strong> / ${formatGtfsTime(next.arrival)}着 / 約${rideMinutes}分</p>
@@ -828,7 +843,7 @@ function wireSearch() {
   els.sampleRouteButton.addEventListener("click", useSampleRoute);
   els.currentLocationButton.addEventListener("click", useCurrentLocation);
   for (const button of els.destinationPresets) {
-    button.addEventListener("click", () => useDestinationPreset(button.dataset.destination));
+    button.addEventListener("click", () => useDestinationPreset(button.dataset.destination, button.dataset.destinationLabel || button.textContent.trim()));
   }
 }
 
