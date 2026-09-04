@@ -208,7 +208,7 @@ function selectOrigin(stop, options = {}) {
   if (!options.keepDestination) els.destinationSearch.value = "";
 
   updateMarkerStyles();
-  const marker = state.markers.get(stop.id);
+  const marker = state.markers.get(stop.name);
   if (marker && state.map) {
     state.map.panTo(marker.getLatLng(), { animate: true, duration: 0.35 });
   }
@@ -336,7 +336,7 @@ function useCurrentLocation() {
 
       showUserLocation(position);
       selectOrigin(nearest.stop, { keepDestination: Boolean(state.destination) });
-      const marker = state.markers.get(nearest.stop.id);
+      const marker = state.markers.get(nearest.stop.name);
       if (marker && state.map) {
         state.map.setView(marker.getLatLng(), Math.max(state.map.getZoom(), 15), { animate: true });
       }
@@ -359,8 +359,8 @@ function useCurrentLocation() {
   );
 }
 
-function markerStyle(stop) {
-  const isSelected = state.origin?.id === stop.id;
+function markerStyle(stopName) {
+  const isSelected = state.origin?.name === stopName;
   return {
     radius: isSelected ? 8 : 4,
     color: "#ffffff",
@@ -372,9 +372,8 @@ function markerStyle(stop) {
 }
 
 function updateMarkerStyles() {
-  for (const [stopId, marker] of state.markers) {
-    const stop = state.stopById.get(stopId);
-    if (stop) marker.setStyle(markerStyle(stop));
+  for (const [stopName, marker] of state.markers) {
+    marker.setStyle(markerStyle(stopName));
   }
 }
 
@@ -399,14 +398,24 @@ function plotStops() {
   if (!state.data.stops.length) return;
 
   const bounds = [];
+  const groups = new Map();
 
   for (const stop of state.data.stops) {
-    const marker = L.circleMarker([stop.lat, stop.lon], markerStyle(stop));
-    marker.bindTooltip(stop.name);
-    marker.on("click", () => selectOrigin(stop));
+    if (!groups.has(stop.name)) groups.set(stop.name, []);
+    groups.get(stop.name).push(stop);
+  }
+
+  for (const [stopName, stops] of groups) {
+    const lat = stops.reduce((sum, stop) => sum + stop.lat, 0) / stops.length;
+    const lon = stops.reduce((sum, stop) => sum + stop.lon, 0) / stops.length;
+    const representative = stops[0];
+    const badge = stops.length > 1 ? `（${stops.length}乗り場）` : "";
+    const marker = L.circleMarker([lat, lon], markerStyle(stopName));
+    marker.bindTooltip(`${stopName}${badge}`);
+    marker.on("click", () => selectOrigin(representative));
     marker.addTo(state.markerLayer);
-    state.markers.set(stop.id, marker);
-    bounds.push([stop.lat, stop.lon]);
+    state.markers.set(stopName, marker);
+    bounds.push([lat, lon]);
   }
 
   state.map.fitBounds(bounds, { padding: [24, 24] });
