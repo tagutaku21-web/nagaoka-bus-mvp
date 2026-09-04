@@ -6,6 +6,7 @@ const state = {
   stopIdsByName: new Map(),
   markers: new Map(),
   map: null,
+  routeLayer: null,
   markerLayer: null,
   userMarker: null
 };
@@ -220,6 +221,7 @@ function selectOrigin(stop, options = {}) {
   els.originSearch.value = stop.name;
   if (!options.keepDestination) els.destinationSearch.value = "";
 
+  clearRouteLines();
   updateMarkerStyles();
   const marker = state.markers.get(stop.name);
   if (marker && state.map) {
@@ -239,6 +241,7 @@ function selectOrigin(stop, options = {}) {
 function selectDestination(stop) {
   state.destination = stop;
   els.destinationSearch.value = stop.name;
+  clearRouteLines();
   updateMarkerStyles();
   const marker = state.markers.get(stop.name);
   if (marker && state.map) {
@@ -471,6 +474,63 @@ function updateMarkerStyles() {
   }
 }
 
+function updateMapSummary() {
+  if (!state.data) return;
+  els.mapSummary.textContent = `${state.markers.size}停留所を表示中（${state.data.stops.length}乗り場を集約）`;
+}
+
+function clearRouteLines() {
+  if (state.routeLayer) state.routeLayer.clearLayers();
+  updateMapSummary();
+}
+
+function routePoints(stops) {
+  const points = [];
+  const seen = new Set();
+  for (const stop of stops) {
+    if (!stop || typeof stop.lat !== "number" || typeof stop.lon !== "number") continue;
+    const key = `${stop.lat},${stop.lon}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    points.push([stop.lat, stop.lon]);
+  }
+  return points;
+}
+
+function drawRouteLines(segments) {
+  if (!state.map || !state.routeLayer) return;
+
+  clearRouteLines();
+  const bounds = [];
+  for (const segment of segments) {
+    const points = routePoints(segment.stops || []);
+    if (points.length < 2) continue;
+    points.forEach((point) => bounds.push(point));
+
+    L.polyline(points, {
+      color: "#ffffff",
+      weight: 9,
+      opacity: 0.9,
+      lineCap: "round",
+      lineJoin: "round"
+    }).addTo(state.routeLayer);
+
+    L.polyline(points, {
+      color: segment.color,
+      weight: 5,
+      opacity: 0.95,
+      dashArray: segment.dashArray || null,
+      lineCap: "round",
+      lineJoin: "round"
+    }).addTo(state.routeLayer);
+  }
+
+  if (bounds.length) {
+    state.map.fitBounds(bounds, { padding: [48, 48], maxZoom: 14 });
+    els.mapSummary.textContent = "選んだルートを地図に表示中";
+  }
+}
+
 function initMap() {
   state.map = L.map(els.map, {
     preferCanvas: true,
@@ -482,6 +542,7 @@ function initMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(state.map);
 
+  state.routeLayer = L.layerGroup().addTo(state.map);
   state.markerLayer = L.layerGroup().addTo(state.map);
   state.map.on("click", selectNearestMarker);
 }
@@ -518,7 +579,7 @@ function plotStops() {
   }
 
   state.map.fitBounds(bounds, { padding: [24, 24] });
-  els.mapSummary.textContent = `${groups.size}停留所を表示中（${state.data.stops.length}乗り場を集約）`;
+  updateMapSummary();
 }
 
 function findDepartures(originId, destinationId, date) {
@@ -553,6 +614,10 @@ function findDepartures(originId, destinationId, date) {
       arrival: parseGtfsTime(destinationTime.arrival),
       originStop: actualOrigin,
       destinationStop: actualDestination,
+      pathStops: times
+        .slice(originIndex, destinationIndex + 1)
+        .map((time) => state.stopById.get(time.stopId))
+        .filter(Boolean),
       platform: actualOrigin.platform,
       headsign: originTime.headsign || trip.headsign,
       stopCount: destinationIndex - originIndex
@@ -591,6 +656,10 @@ function findTransferDepartures(originId, destinationId, date) {
             arrival: parseGtfsTime(times[index].arrival),
             originStop: state.stopById.get(times[originIndex].stopId) || state.origin,
             transferStop,
+            pathStops: times
+              .slice(originIndex, index + 1)
+              .map((time) => state.stopById.get(time.stopId))
+              .filter(Boolean),
             routeName,
             headsign: times[originIndex].headsign || trip.headsign
           });
@@ -611,6 +680,10 @@ function findTransferDepartures(originId, destinationId, date) {
           arrival: parseGtfsTime(times[destinationIndex].arrival),
           transferStop,
           destinationStop: state.stopById.get(times[destinationIndex].stopId) || state.destination,
+          pathStops: times
+            .slice(index, destinationIndex + 1)
+            .map((time) => state.stopById.get(time.stopId))
+            .filter(Boolean),
           routeName,
           headsign: times[index].headsign || trip.headsign
         };
@@ -654,11 +727,18 @@ function findTransferDepartures(originId, destinationId, date) {
 function renderResult() {
   const date = selectedDateTime();
   const departures = findDepartures(state.origin.id, state.destination.id, date);
+  clearRouteLines();
   els.resultEmpty.classList.add("hidden");
   els.result.classList.remove("hidden");
 
   if (!departures.length) {
     const transfers = findTransferDepartures(state.origin.id, state.destination.id, date);
+    if (transfers.length) {
+      drawRouteLines([
+        { stops: transfers[0].firstLeg.pathStops, color: "#f5b335" },
+        { stops: transfers[0].secondLeg.pathStops, color: "#0b6b4f", dashArray: "8 8" }
+      ]);
+    }
     els.result.innerHTML = `
       <div class="next-card">
         <h2>直通便が見つかりません</h2>
@@ -681,6 +761,7 @@ function renderResult() {
   }
 
   const [next, ...later] = departures;
+  drawRouteLines([{ stops: next.pathStops, color: "#0b6b4f" }]);
   const nowMinutes = date.getHours() * 60 + date.getMinutes();
   const routeName = next.route.longName || next.route.shortName || "路線名未設定";
   const rideMinutes = Math.max(0, next.arrival - next.departure);
