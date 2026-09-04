@@ -309,18 +309,18 @@ input:focus {
 }
 
 .route-stop-sign {
-  --pin-color: #6f86ad;
+  --pin-color: #385c8a;
   position: absolute;
   left: 0;
   top: 0;
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
-  border: 4px solid #fff;
+  width: 22px;
+  height: 22px;
+  border: 3px solid #fff;
   border-radius: 50% 50% 50% 0;
   background: var(--pin-color);
-  box-shadow: 0 3px 10px rgba(17, 24, 39, 0.26);
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.28);
   color: #fff;
   font-size: 11px;
   font-weight: 900;
@@ -363,12 +363,12 @@ input:focus {
 }
 
 .route-stop-sign.is-transfer {
-  --pin-color: #506b98;
+  --pin-color: #29476f;
 }
 
 .route-stop-sign.is-goal,
 .route-stop-sign.is-second {
-  --pin-color: #5f9a82;
+  --pin-color: #2f765f;
 }
 
 .stop-picker {
