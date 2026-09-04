@@ -19,6 +19,8 @@ const els = {
   rideTime: document.querySelector("#ride-time"),
   originLabel: document.querySelector("#origin-label"),
   destinationLabel: document.querySelector("#destination-label"),
+  originSummary: document.querySelector("#origin-summary"),
+  destinationSummary: document.querySelector("#destination-summary"),
   sampleRouteButton: document.querySelector("#sample-route-button"),
   currentLocationButton: document.querySelector("#current-location-button"),
   swapButton: document.querySelector("#swap-button"),
@@ -197,10 +199,18 @@ function renderCandidates(container, stops, onPick) {
 }
 
 function updateLabels() {
-  els.originLabel.textContent = `出発: ${state.origin ? state.origin.name : "未選択"}`;
-  els.destinationLabel.textContent = `目的地: ${state.destination ? state.destination.name : "未選択"}`;
+  els.originLabel.textContent = state.origin ? state.origin.name : "地図か検索で選ぶ";
+  els.destinationLabel.textContent = state.destination ? state.destination.name : "目的地ボタンか検索で選ぶ";
+  els.originSummary.classList.toggle("is-set", Boolean(state.origin));
+  els.destinationSummary.classList.toggle("is-set", Boolean(state.destination));
   els.searchButton.disabled = !state.origin || !state.destination;
+  els.searchButton.textContent = state.origin && state.destination ? "次のバスを見る" : "出発と目的地を選んでください";
   els.swapButton.disabled = !state.origin || !state.destination;
+  for (const button of els.destinationPresets) {
+    const isActive = state.destination?.name === button.dataset.destination;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  }
 }
 
 function selectOrigin(stop, options = {}) {
