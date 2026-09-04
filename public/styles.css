@@ -195,6 +195,7 @@ input:focus {
 
 #search-button {
   width: 100%;
+  margin-top: 10px;
   min-height: 48px;
   border: 0;
   border-radius: 8px;
@@ -226,6 +227,22 @@ input:focus {
 .map {
   position: absolute;
   inset: 0;
+}
+
+.map-summary {
+  position: absolute;
+  z-index: 500;
+  left: 12px;
+  bottom: 24px;
+  max-width: calc(100% - 24px);
+  padding: 8px 10px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.12);
 }
 
 .leaflet-container {
