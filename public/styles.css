@@ -337,6 +337,36 @@ input:focus {
   line-height: 1.6;
 }
 
+.transfer-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.transfer-card {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.transfer-card h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.transfer-card p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.transfer-card strong {
+  color: var(--ink);
+}
+
 .later {
   margin-top: 16px;
   padding-top: 16px;
