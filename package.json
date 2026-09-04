@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "check:sample": "node scripts/check-sample-route.mjs",
+    "check:transfer": "node scripts/check-transfer-route.mjs",
     "import:gtfs": "node scripts/import-gtfs.mjs",
     "serve": "node scripts/serve.mjs"
   }
