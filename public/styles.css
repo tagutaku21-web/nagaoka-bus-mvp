@@ -135,6 +135,26 @@ label {
   background: #f5f8ff;
 }
 
+.secondary-button {
+  min-height: 42px;
+  border: 1px solid rgba(15, 47, 95, 0.22);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: #f5f8ff;
+  color: var(--brand);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  border-color: var(--brand);
+}
+
+.secondary-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 input {
   width: 100%;
   border: 1px solid var(--line);
