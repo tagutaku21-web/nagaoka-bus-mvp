@@ -309,44 +309,73 @@ input:focus {
 }
 
 .route-stop-sign {
+  --pin-color: var(--brand);
   position: absolute;
   left: 0;
   top: 0;
   display: grid;
   place-items: center;
-  min-width: 13px;
-  height: 13px;
+  width: 20px;
+  height: 20px;
   border: 2px solid #fff;
-  border-radius: 999px;
-  background: var(--brand);
-  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.28);
+  border-radius: 50% 50% 50% 0;
+  background: var(--pin-color);
+  box-shadow: 0 3px 10px rgba(17, 24, 39, 0.32);
   color: #fff;
   font-size: 11px;
   font-weight: 900;
   line-height: 1;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -100%) rotate(-45deg);
   white-space: nowrap;
+}
+
+.route-stop-sign::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #fff;
 }
 
 .route-stop-sign.is-start,
 .route-stop-sign.is-transfer,
 .route-stop-sign.is-goal {
+  width: auto;
+  min-width: 44px;
   height: 24px;
   padding: 0 8px;
+  border-radius: 999px;
+  transform: translate(-50%, calc(-100% - 8px));
+}
+
+.route-stop-sign.is-start::after,
+.route-stop-sign.is-transfer::after,
+.route-stop-sign.is-goal::after {
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 0;
+  height: 0;
+  border: 7px solid transparent;
+  border-top-color: var(--pin-color);
+  border-bottom: 0;
+  border-radius: 0;
+  background: transparent;
+  transform: translateX(-50%);
 }
 
 .route-stop-sign.is-start {
-  background: var(--brand-2);
+  --pin-color: var(--brand-2);
   color: var(--ink);
 }
 
 .route-stop-sign.is-transfer {
-  background: var(--brand);
+  --pin-color: var(--brand);
 }
 
 .route-stop-sign.is-goal,
 .route-stop-sign.is-second {
-  background: var(--good);
+  --pin-color: var(--good);
 }
 
 .stop-picker {
