@@ -663,6 +663,7 @@ function renderResult() {
       <div class="next-card">
         <h2>直通便が見つかりません</h2>
         <p class="meta">直通はありません。下の候補はGTFS時刻から機械的に拾った1回乗り換え案です。</p>
+        <p class="transfer-note">バスは道路状況で遅れることがあります。乗り換え時間には余裕を見てください。</p>
         ${transfers.length ? `<div class="transfer-list">
           ${transfers.map((item) => `
             <div class="transfer-card">
