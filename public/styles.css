@@ -418,6 +418,13 @@ input:focus {
   margin-top: 16px;
 }
 
+.transfer-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .transfer-card {
   padding: 12px;
   border: 1px solid var(--line);
