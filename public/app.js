@@ -485,6 +485,95 @@ function findDepartures(originId, destinationId, date) {
   return results.sort((a, b) => a.departure - b.departure).slice(0, 5);
 }
 
+function findTransferDepartures(originId, destinationId, date) {
+  const serviceIds = activeServiceIds(date);
+  const nowMinutes = date.getHours() * 60 + date.getMinutes();
+  const originIds = new Set(stopGroupIds(state.stopById.get(originId) || state.origin));
+  const destinationIds = new Set(stopGroupIds(state.stopById.get(destinationId) || state.destination));
+  const minTransferMinutes = 5;
+  const maxTransferMinutes = 90;
+  const firstLegs = [];
+  const secondLegsByTransfer = new Map();
+
+  for (const [tripId, times] of Object.entries(state.data.stopTimesByTrip)) {
+    const trip = state.data.trips[tripId];
+    if (!trip || !serviceIds.has(trip.serviceId)) continue;
+
+    const route = state.data.routes[trip.routeId] || {};
+    const routeName = route.longName || route.shortName || "路線名未設定";
+    const originIndex = times.findIndex((time) => originIds.has(time.stopId));
+    if (originIndex >= 0) {
+      const departure = parseGtfsTime(times[originIndex].departure);
+      if (departure >= nowMinutes) {
+        for (let index = originIndex + 1; index < times.length; index += 1) {
+          const transferStop = state.stopById.get(times[index].stopId);
+          if (!transferStop || destinationIds.has(transferStop.id)) continue;
+          firstLegs.push({
+            transferName: transferStop.name,
+            departure,
+            arrival: parseGtfsTime(times[index].arrival),
+            originStop: state.stopById.get(times[originIndex].stopId) || state.origin,
+            transferStop,
+            routeName,
+            headsign: times[originIndex].headsign || trip.headsign
+          });
+        }
+      }
+    }
+
+    const destinationIndex = times.findIndex((time) => destinationIds.has(time.stopId));
+    if (destinationIndex > 0) {
+      for (let index = 0; index < destinationIndex; index += 1) {
+        const transferStop = state.stopById.get(times[index].stopId);
+        if (!transferStop || originIds.has(transferStop.id)) continue;
+        const departure = parseGtfsTime(times[index].departure);
+        if (departure < nowMinutes) continue;
+        const leg = {
+          transferName: transferStop.name,
+          departure,
+          arrival: parseGtfsTime(times[destinationIndex].arrival),
+          transferStop,
+          destinationStop: state.stopById.get(times[destinationIndex].stopId) || state.destination,
+          routeName,
+          headsign: times[index].headsign || trip.headsign
+        };
+        if (!secondLegsByTransfer.has(transferStop.name)) secondLegsByTransfer.set(transferStop.name, []);
+        secondLegsByTransfer.get(transferStop.name).push(leg);
+      }
+    }
+  }
+
+  for (const legs of secondLegsByTransfer.values()) {
+    legs.sort((a, b) => a.departure - b.departure);
+  }
+
+  const bestByTransfer = new Map();
+  for (const firstLeg of firstLegs) {
+    const secondLegs = secondLegsByTransfer.get(firstLeg.transferName) || [];
+    const secondLeg = secondLegs.find((candidate) => {
+      const wait = candidate.departure - firstLeg.arrival;
+      return wait >= minTransferMinutes && wait <= maxTransferMinutes;
+    });
+    if (!secondLeg) continue;
+
+    const candidate = {
+      transferName: firstLeg.transferName,
+      firstLeg,
+      secondLeg,
+      wait: secondLeg.departure - firstLeg.arrival,
+      totalMinutes: secondLeg.arrival - firstLeg.departure
+    };
+    const current = bestByTransfer.get(firstLeg.transferName);
+    if (!current || candidate.secondLeg.arrival < current.secondLeg.arrival) {
+      bestByTransfer.set(firstLeg.transferName, candidate);
+    }
+  }
+
+  return [...bestByTransfer.values()]
+    .sort((a, b) => a.secondLeg.arrival - b.secondLeg.arrival || a.firstLeg.departure - b.firstLeg.departure)
+    .slice(0, 3);
+}
+
 function renderResult() {
   const date = selectedDateTime();
   const departures = findDepartures(state.origin.id, state.destination.id, date);
@@ -492,10 +581,22 @@ function renderResult() {
   els.result.classList.remove("hidden");
 
   if (!departures.length) {
+    const transfers = findTransferDepartures(state.origin.id, state.destination.id, date);
     els.result.innerHTML = `
       <div class="next-card">
         <h2>直通便が見つかりません</h2>
-        <p class="meta">この試作MVPでは乗り換え検索はまだ行いません。出発地か目的地を変えて確認してください。</p>
+        <p class="meta">直通はありません。下の候補はGTFS時刻から機械的に拾った1回乗り換え案です。</p>
+        ${transfers.length ? `<div class="transfer-list">
+          ${transfers.map((item) => `
+            <div class="transfer-card">
+              <h3>${escapeHtml(item.transferName)}で乗り換え</h3>
+              <p><strong>${formatGtfsTime(item.firstLeg.departure)}発</strong> ${escapeHtml(item.firstLeg.routeName)}</p>
+              <p>${formatGtfsTime(item.firstLeg.arrival)}着 / ${item.wait}分待ち</p>
+              <p><strong>${formatGtfsTime(item.secondLeg.departure)}発</strong> ${escapeHtml(item.secondLeg.routeName)}</p>
+              <p>${formatGtfsTime(item.secondLeg.arrival)}着 / 合計約${item.totalMinutes}分</p>
+            </div>
+          `).join("")}
+        </div>` : `<p class="meta">1回乗り換え候補も見つかりませんでした。出発地・目的地・時刻を変えて確認してください。</p>`}
       </div>
     `;
     return;
