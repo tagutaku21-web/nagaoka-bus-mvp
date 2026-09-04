@@ -221,7 +221,7 @@ function selectOrigin(stop, options = {}) {
   els.originSearch.value = stop.name;
   if (!options.keepDestination) els.destinationSearch.value = "";
 
-  clearRouteLines();
+  clearRouteSigns();
   updateMarkerStyles();
   const marker = state.markers.get(stop.name);
   if (marker && state.map) {
@@ -241,7 +241,7 @@ function selectOrigin(stop, options = {}) {
 function selectDestination(stop) {
   state.destination = stop;
   els.destinationSearch.value = stop.name;
-  clearRouteLines();
+  clearRouteSigns();
   updateMarkerStyles();
   const marker = state.markers.get(stop.name);
   if (marker && state.map) {
@@ -479,55 +479,68 @@ function updateMapSummary() {
   els.mapSummary.textContent = `${state.markers.size}停留所を表示中（${state.data.stops.length}乗り場を集約）`;
 }
 
-function clearRouteLines() {
+function clearRouteSigns() {
   if (state.routeLayer) state.routeLayer.clearLayers();
   updateMapSummary();
 }
 
-function routePoints(stops) {
-  const points = [];
+function routeStops(stops) {
+  const route = [];
   const seen = new Set();
   for (const stop of stops) {
     if (!stop || typeof stop.lat !== "number" || typeof stop.lon !== "number") continue;
-    const key = `${stop.lat},${stop.lon}`;
+    const key = stop.id || `${stop.lat},${stop.lon}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    points.push([stop.lat, stop.lon]);
+    route.push(stop);
   }
-  return points;
+  return route;
 }
 
-function drawRouteLines(segments) {
+function routeSignLabel(segment, index, lastIndex) {
+  if (index === 0 && segment.kind !== "second") return "出発";
+  if (index === lastIndex && segment.kind === "first") return "乗換";
+  if (index === lastIndex) return "到着";
+  return "";
+}
+
+function routeSignKind(segment, index, lastIndex) {
+  if (index === 0 && segment.kind !== "second") return "start";
+  if (index === lastIndex && segment.kind === "first") return "transfer";
+  if (index === lastIndex) return "goal";
+  return segment.kind === "second" ? "via second" : "via";
+}
+
+function drawRouteSigns(segments) {
   if (!state.map || !state.routeLayer) return;
 
-  clearRouteLines();
+  clearRouteSigns();
   const bounds = [];
   for (const segment of segments) {
-    const points = routePoints(segment.stops || []);
-    if (points.length < 2) continue;
-    points.forEach((point) => bounds.push(point));
+    const stops = routeStops(segment.stops || []);
+    if (stops.length < 2) continue;
+    const lastIndex = stops.length - 1;
 
-    L.polyline(points, {
-      color: "#ffffff",
-      weight: 9,
-      opacity: 0.9,
-      lineCap: "round",
-      lineJoin: "round"
-    }).addTo(state.routeLayer);
-
-    L.polyline(points, {
-      color: segment.color,
-      weight: 5,
-      opacity: 0.95,
-      dashArray: segment.dashArray || null,
-      lineCap: "round",
-      lineJoin: "round"
-    }).addTo(state.routeLayer);
+    stops.forEach((stop, index) => {
+      if (segment.kind === "second" && index === 0) return;
+      bounds.push([stop.lat, stop.lon]);
+      const label = routeSignLabel(segment, index, lastIndex);
+      const kind = routeSignKind(segment, index, lastIndex);
+      L.marker([stop.lat, stop.lon], {
+        interactive: false,
+        icon: L.divIcon({
+          className: "route-stop-sign-wrap",
+          html: `<span class="route-stop-sign is-${kind.replace(" ", " is-")}">${escapeHtml(label)}</span>`,
+          iconSize: [1, 1],
+          iconAnchor: [0, 0]
+        })
+      }).addTo(state.routeLayer);
+    });
   }
 
   if (bounds.length) {
     state.map.fitBounds(bounds, { padding: [48, 48], maxZoom: 14 });
-    els.mapSummary.textContent = "選んだルートを地図に表示中";
+    els.mapSummary.textContent = "通るバス停を地図に表示中";
   }
 }
 
@@ -727,16 +740,16 @@ function findTransferDepartures(originId, destinationId, date) {
 function renderResult() {
   const date = selectedDateTime();
   const departures = findDepartures(state.origin.id, state.destination.id, date);
-  clearRouteLines();
+  clearRouteSigns();
   els.resultEmpty.classList.add("hidden");
   els.result.classList.remove("hidden");
 
   if (!departures.length) {
     const transfers = findTransferDepartures(state.origin.id, state.destination.id, date);
     if (transfers.length) {
-      drawRouteLines([
-        { stops: transfers[0].firstLeg.pathStops, color: "#f5b335" },
-        { stops: transfers[0].secondLeg.pathStops, color: "#0b6b4f", dashArray: "8 8" }
+      drawRouteSigns([
+        { stops: transfers[0].firstLeg.pathStops, kind: "first" },
+        { stops: transfers[0].secondLeg.pathStops, kind: "second" }
       ]);
     }
     els.result.innerHTML = `
@@ -761,7 +774,7 @@ function renderResult() {
   }
 
   const [next, ...later] = departures;
-  drawRouteLines([{ stops: next.pathStops, color: "#0b6b4f" }]);
+  drawRouteSigns([{ stops: next.pathStops, kind: "direct" }]);
   const nowMinutes = date.getHours() * 60 + date.getMinutes();
   const routeName = next.route.longName || next.route.shortName || "路線名未設定";
   const rideMinutes = Math.max(0, next.arrival - next.departure);
