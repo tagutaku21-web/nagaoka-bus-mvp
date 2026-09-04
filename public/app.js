@@ -17,6 +17,7 @@ const els = {
   originLabel: document.querySelector("#origin-label"),
   destinationLabel: document.querySelector("#destination-label"),
   sampleRouteButton: document.querySelector("#sample-route-button"),
+  destinationPresets: document.querySelectorAll("[data-destination]"),
   searchButton: document.querySelector("#search-button"),
   result: document.querySelector("#result"),
   resultEmpty: document.querySelector("#result-empty"),
@@ -98,7 +99,11 @@ const searchAliases = [
   ["長岡駅", "長岡駅前"],
   ["長岡赤十字病院", "日赤病院前"],
   ["赤十字病院", "日赤病院前"],
-  ["日赤", "日赤病院前"]
+  ["日赤", "日赤病院前"],
+  ["リバーサイド千秋", "子育ての駅千秋"],
+  ["リバーサイド", "子育ての駅千秋"],
+  ["アオーレ長岡", "アオーレ長岡前"],
+  ["アオーレ", "アオーレ長岡前"]
 ];
 
 function expandSearchTerms(query) {
@@ -212,6 +217,33 @@ function useSampleRoute() {
   selectDestination(destination);
   renderResult();
   els.result.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function useDestinationPreset(stopName) {
+  if (!state.data) {
+    els.status.textContent = "GTFSデータを読み込み中です。少し待ってからもう一度押してください。";
+    return;
+  }
+
+  const destination = findStopByName(stopName);
+  if (!destination) {
+    els.status.textContent = `${stopName} に対応する停留所が見つかりませんでした。`;
+    return;
+  }
+
+  if (!state.origin && destination.name !== "長岡駅前") {
+    const defaultOrigin = findStopByName("長岡駅前");
+    if (defaultOrigin) selectOrigin(defaultOrigin);
+  }
+
+  selectDestination(destination);
+  if (state.origin) {
+    renderResult();
+    els.result.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+
+  els.status.textContent = `${destination.name} を目的地にしました。出発バス停を選んでください。`;
 }
 
 function plotStops() {
@@ -348,6 +380,9 @@ function wireSearch() {
 
   els.searchButton.addEventListener("click", renderResult);
   els.sampleRouteButton.addEventListener("click", useSampleRoute);
+  for (const button of els.destinationPresets) {
+    button.addEventListener("click", () => useDestinationPreset(button.dataset.destination));
+  }
 }
 
 async function init() {
