@@ -528,6 +528,7 @@ function drawRouteSigns(segments) {
       const kind = routeSignKind(segment, index, lastIndex);
       L.marker([stop.lat, stop.lon], {
         interactive: false,
+        zIndexOffset: 1000,
         icon: L.divIcon({
           className: "route-stop-sign-wrap",
           html: `<span class="route-stop-sign is-${kind.replace(" ", " is-")}">${escapeHtml(label)}</span>`,
