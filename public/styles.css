@@ -102,6 +102,39 @@ label {
   background: #fff3d2;
 }
 
+.destination-presets {
+  margin-bottom: 18px;
+}
+
+.destination-presets p {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.preset-grid button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fff;
+  color: var(--brand);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.preset-grid button:hover {
+  border-color: var(--brand);
+  background: #f5f8ff;
+}
+
 input {
   width: 100%;
   border: 1px solid var(--line);
@@ -233,7 +266,7 @@ input:focus {
 
 .countdown {
   margin: 6px 0 2px;
-  font-size: 58px;
+  font-size: 72px;
   line-height: 1;
   color: var(--good);
   font-weight: 900;
@@ -241,7 +274,7 @@ input:focus {
 }
 
 .countdown span {
-  font-size: 20px;
+  font-size: 24px;
 }
 
 .time-main {
@@ -348,12 +381,12 @@ input:focus {
   }
 
   .map-panel {
-    min-height: 34vh;
-    order: 2;
+    min-height: 220px;
+    order: 3;
   }
 
   .result-panel {
-    order: 3;
+    order: 2;
   }
 
   h1 {
@@ -362,7 +395,11 @@ input:focus {
   }
 
   .countdown {
-    font-size: 54px;
+    font-size: 76px;
+  }
+
+  .next-card {
+    padding: 16px;
   }
 
   .later-row {
