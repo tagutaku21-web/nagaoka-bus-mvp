@@ -21,8 +21,10 @@ const els = {
   destinationLabel: document.querySelector("#destination-label"),
   sampleRouteButton: document.querySelector("#sample-route-button"),
   currentLocationButton: document.querySelector("#current-location-button"),
+  swapButton: document.querySelector("#swap-button"),
   destinationPresets: document.querySelectorAll("[data-destination]"),
   searchButton: document.querySelector("#search-button"),
+  mapSummary: document.querySelector("#map-summary"),
   result: document.querySelector("#result"),
   resultEmpty: document.querySelector("#result-empty")
 };
@@ -198,6 +200,7 @@ function updateLabels() {
   els.originLabel.textContent = `出発: ${state.origin ? state.origin.name : "未選択"}`;
   els.destinationLabel.textContent = `目的地: ${state.destination ? state.destination.name : "未選択"}`;
   els.searchButton.disabled = !state.origin || !state.destination;
+  els.swapButton.disabled = !state.origin || !state.destination;
 }
 
 function selectOrigin(stop, options = {}) {
@@ -225,7 +228,25 @@ function selectOrigin(stop, options = {}) {
 function selectDestination(stop) {
   state.destination = stop;
   els.destinationSearch.value = stop.name;
+  updateMarkerStyles();
+  const marker = state.markers.get(stop.name);
+  if (marker && state.map) {
+    state.map.panTo(marker.getLatLng(), { animate: true, duration: 0.35 });
+  }
   updateLabels();
+}
+
+function swapStops() {
+  if (!state.origin || !state.destination) return;
+
+  const previousOrigin = state.origin;
+  state.origin = state.destination;
+  state.destination = previousOrigin;
+  els.originSearch.value = state.origin.name;
+  els.destinationSearch.value = state.destination.name;
+  updateMarkerStyles();
+  updateLabels();
+  renderResult();
 }
 
 function findStopByName(name) {
@@ -360,13 +381,14 @@ function useCurrentLocation() {
 }
 
 function markerStyle(stopName) {
-  const isSelected = state.origin?.name === stopName;
+  const isOrigin = state.origin?.name === stopName;
+  const isDestination = state.destination?.name === stopName;
   return {
-    radius: isSelected ? 8 : 4,
+    radius: isOrigin || isDestination ? 8 : 4,
     color: "#ffffff",
-    weight: isSelected ? 3 : 1.5,
-    fillColor: isSelected ? "#f5b335" : "#0f2f5f",
-    fillOpacity: isSelected ? 1 : 0.78,
+    weight: isOrigin || isDestination ? 3 : 1.5,
+    fillColor: isOrigin ? "#f5b335" : isDestination ? "#0b6b4f" : "#0f2f5f",
+    fillOpacity: isOrigin || isDestination ? 1 : 0.78,
     opacity: 1
   };
 }
@@ -419,6 +441,7 @@ function plotStops() {
   }
 
   state.map.fitBounds(bounds, { padding: [24, 24] });
+  els.mapSummary.textContent = `${groups.size}停留所を表示中（${state.data.stops.length}乗り場を集約）`;
 }
 
 function findDepartures(originId, destinationId, date) {
@@ -527,6 +550,7 @@ function wireSearch() {
   });
 
   els.searchButton.addEventListener("click", renderResult);
+  els.swapButton.addEventListener("click", swapStops);
   els.sampleRouteButton.addEventListener("click", useSampleRoute);
   els.currentLocationButton.addEventListener("click", useCurrentLocation);
   for (const button of els.destinationPresets) {
