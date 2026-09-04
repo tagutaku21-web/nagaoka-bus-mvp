@@ -214,6 +214,7 @@ function selectOrigin(stop, options = {}) {
   const marker = state.markers.get(stop.name);
   if (marker && state.map) {
     state.map.panTo(marker.getLatLng(), { animate: true, duration: 0.35 });
+    marker.openTooltip();
   }
 
   const destinationIds = new Set(stopGroupIds(stop).flatMap((id) => state.data.directDestinations[id] || []));
@@ -232,6 +233,7 @@ function selectDestination(stop) {
   const marker = state.markers.get(stop.name);
   if (marker && state.map) {
     state.map.panTo(marker.getLatLng(), { animate: true, duration: 0.35 });
+    marker.openTooltip();
   }
   updateLabels();
 }
@@ -380,11 +382,31 @@ function useCurrentLocation() {
   );
 }
 
+function selectNearestMarker(event) {
+  if (!state.map) return;
+
+  const clickPoint = state.map.latLngToLayerPoint(event.latlng);
+  let nearest = null;
+  const hitRadius = 26;
+
+  for (const marker of state.markers.values()) {
+    const markerPoint = state.map.latLngToLayerPoint(marker.getLatLng());
+    const distance = clickPoint.distanceTo(markerPoint);
+    if (distance <= hitRadius && (!nearest || distance < nearest.distance)) {
+      nearest = { marker, distance };
+    }
+  }
+
+  if (nearest?.marker.representativeStop) {
+    selectOrigin(nearest.marker.representativeStop);
+  }
+}
+
 function markerStyle(stopName) {
   const isOrigin = state.origin?.name === stopName;
   const isDestination = state.destination?.name === stopName;
   return {
-    radius: isOrigin || isDestination ? 8 : 4,
+    radius: isOrigin || isDestination ? 8 : 5,
     color: "#ffffff",
     weight: isOrigin || isDestination ? 3 : 1.5,
     fillColor: isOrigin ? "#f5b335" : isDestination ? "#0b6b4f" : "#0f2f5f",
@@ -411,6 +433,7 @@ function initMap() {
   }).addTo(state.map);
 
   state.markerLayer = L.layerGroup().addTo(state.map);
+  state.map.on("click", selectNearestMarker);
 }
 
 function plotStops() {
@@ -433,6 +456,7 @@ function plotStops() {
     const representative = stops[0];
     const badge = stops.length > 1 ? `（${stops.length}乗り場）` : "";
     const marker = L.circleMarker([lat, lon], markerStyle(stopName));
+    marker.representativeStop = representative;
     marker.bindTooltip(`${stopName}${badge}`);
     marker.on("click", () => selectOrigin(representative));
     marker.addTo(state.markerLayer);
