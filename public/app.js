@@ -4,7 +4,9 @@ const state = {
   destination: null,
   stopById: new Map(),
   stopIdsByName: new Map(),
-  pins: new Map()
+  markers: new Map(),
+  map: null,
+  markerLayer: null
 };
 
 const els = {
@@ -20,8 +22,7 @@ const els = {
   destinationPresets: document.querySelectorAll("[data-destination]"),
   searchButton: document.querySelector("#search-button"),
   result: document.querySelector("#result"),
-  resultEmpty: document.querySelector("#result-empty"),
-  pinTemplate: document.querySelector("#stop-pin-template")
+  resultEmpty: document.querySelector("#result-empty")
 };
 
 function pad(value) {
@@ -178,8 +179,11 @@ function selectOrigin(stop) {
   els.originSearch.value = stop.name;
   els.destinationSearch.value = "";
 
-  for (const pin of state.pins.values()) pin.classList.remove("selected");
-  state.pins.get(stop.id)?.classList.add("selected");
+  updateMarkerStyles();
+  const marker = state.markers.get(stop.id);
+  if (marker && state.map) {
+    state.map.panTo(marker.getLatLng(), { animate: true, duration: 0.35 });
+  }
 
   const destinationIds = new Set(stopGroupIds(stop).flatMap((id) => state.data.directDestinations[id] || []));
   const destinations = uniqueStopsByName([...destinationIds].map((id) => state.stopById.get(id)).filter(Boolean));
@@ -246,31 +250,57 @@ function useDestinationPreset(stopName) {
   els.status.textContent = `${destination.name} を目的地にしました。出発バス停を選んでください。`;
 }
 
+function markerStyle(stop) {
+  const isSelected = state.origin?.id === stop.id;
+  return {
+    radius: isSelected ? 8 : 4,
+    color: "#ffffff",
+    weight: isSelected ? 3 : 1.5,
+    fillColor: isSelected ? "#f5b335" : "#0f2f5f",
+    fillOpacity: isSelected ? 1 : 0.78,
+    opacity: 1
+  };
+}
+
+function updateMarkerStyles() {
+  for (const [stopId, marker] of state.markers) {
+    const stop = state.stopById.get(stopId);
+    if (stop) marker.setStyle(markerStyle(stop));
+  }
+}
+
+function initMap() {
+  state.map = L.map(els.map, {
+    preferCanvas: true,
+    zoomControl: true
+  });
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(state.map);
+
+  state.markerLayer = L.layerGroup().addTo(state.map);
+}
+
 function plotStops() {
-  els.map.innerHTML = "";
-  state.pins.clear();
+  state.markerLayer.clearLayers();
+  state.markers.clear();
 
   if (!state.data.stops.length) return;
 
-  const lats = state.data.stops.map((stop) => stop.lat);
-  const lons = state.data.stops.map((stop) => stop.lon);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons);
-  const maxLon = Math.max(...lons);
+  const bounds = [];
 
   for (const stop of state.data.stops) {
-    const pin = els.pinTemplate.content.firstElementChild.cloneNode(true);
-    const x = ((stop.lon - minLon) / (maxLon - minLon || 1)) * 86 + 7;
-    const y = (1 - (stop.lat - minLat) / (maxLat - minLat || 1)) * 86 + 7;
-    pin.style.left = `${x}%`;
-    pin.style.top = `${y}%`;
-    pin.title = stop.name;
-    pin.setAttribute("aria-label", stop.name);
-    pin.addEventListener("click", () => selectOrigin(stop));
-    els.map.append(pin);
-    state.pins.set(stop.id, pin);
+    const marker = L.circleMarker([stop.lat, stop.lon], markerStyle(stop));
+    marker.bindTooltip(stop.name);
+    marker.on("click", () => selectOrigin(stop));
+    marker.addTo(state.markerLayer);
+    state.markers.set(stop.id, marker);
+    bounds.push([stop.lat, stop.lon]);
   }
+
+  state.map.fitBounds(bounds, { padding: [24, 24] });
 }
 
 function findDepartures(originId, destinationId, date) {
@@ -398,6 +428,7 @@ async function init() {
     state.stopIdsByName.get(stop.name).push(stop.id);
   }
 
+  initMap();
   plotStops();
   wireSearch();
 
