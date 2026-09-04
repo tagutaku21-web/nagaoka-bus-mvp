@@ -62,8 +62,20 @@
         </div>
 
         <div class="selected">
-          <p id="origin-label">出発: 未選択</p>
-          <p id="destination-label">目的地: 未選択</p>
+          <div id="origin-summary" class="selected-row">
+            <span class="step-badge">1</span>
+            <div>
+              <span class="selected-title">出発</span>
+              <strong id="origin-label">未選択</strong>
+            </div>
+          </div>
+          <div id="destination-summary" class="selected-row">
+            <span class="step-badge">2</span>
+            <div>
+              <span class="selected-title">目的地</span>
+              <strong id="destination-label">未選択</strong>
+            </div>
+          </div>
         </div>
 
         <button id="swap-button" class="secondary-button" type="button" disabled>出発と目的地を入れ替える</button>
