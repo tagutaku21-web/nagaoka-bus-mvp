@@ -261,6 +261,39 @@ input:focus {
   font-size: 11px;
 }
 
+.stop-picker {
+  display: grid;
+  gap: 10px;
+  min-width: 180px;
+}
+
+.stop-picker strong {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.stop-picker-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stop-picker-actions button {
+  min-height: 36px;
+  border: 1px solid rgba(15, 47, 95, 0.24);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #f5f8ff;
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.stop-picker-actions button:hover {
+  border-color: var(--brand);
+}
+
 .empty {
   color: var(--muted);
   line-height: 1.7;
