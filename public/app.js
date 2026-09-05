@@ -560,6 +560,28 @@ function drawRouteSigns(segments) {
   }
 }
 
+function drawTransferRoute(transfer) {
+  drawRouteSigns([
+    { stops: transfer.firstLeg.pathStops, kind: "first" },
+    { stops: transfer.secondLeg.pathStops, kind: "second" }
+  ]);
+}
+
+function wireTransferCards(transfers) {
+  els.result.querySelectorAll("[data-transfer-index]").forEach((card) => {
+    card.addEventListener("click", () => {
+      const index = Number(card.dataset.transferIndex);
+      const transfer = transfers[index];
+      if (!transfer) return;
+
+      drawTransferRoute(transfer);
+      els.result.querySelectorAll("[data-transfer-index]").forEach((item) => {
+        item.classList.toggle("is-active", item === card);
+      });
+    });
+  });
+}
+
 function initMap() {
   state.map = L.map(els.map, {
     preferCanvas: true,
@@ -763,29 +785,27 @@ function renderResult() {
   if (!departures.length) {
     const transfers = findTransferDepartures(state.origin.id, state.destination.id, date);
     if (transfers.length) {
-      drawRouteSigns([
-        { stops: transfers[0].firstLeg.pathStops, kind: "first" },
-        { stops: transfers[0].secondLeg.pathStops, kind: "second" }
-      ]);
+      drawTransferRoute(transfers[0]);
     }
     els.result.innerHTML = `
       <div class="next-card">
         <h2>直通便が見つかりません</h2>
         <p class="meta">直通はありません。下の候補はGTFS時刻から機械的に拾った1回乗り換え案です。</p>
-        <p class="transfer-note">バスは道路状況で遅れることがあります。乗り換え時間には余裕を見てください。</p>
+        <p class="transfer-note">候補を押すと、地図の経由バス停ピンが切り替わります。バスは道路状況で遅れることがあります。</p>
         ${transfers.length ? `<div class="transfer-list">
-          ${transfers.map((item) => `
-            <div class="transfer-card">
+          ${transfers.map((item, index) => `
+            <button class="transfer-card ${index === 0 ? "is-active" : ""}" type="button" data-transfer-index="${index}">
               <h3>${escapeHtml(item.transferName)}で乗り換え</h3>
               <p><strong>${formatGtfsTime(item.firstLeg.departure)}発</strong> ${escapeHtml(item.firstLeg.routeName)}</p>
               <p>${formatGtfsTime(item.firstLeg.arrival)}着 / ${item.wait}分待ち</p>
               <p><strong>${formatGtfsTime(item.secondLeg.departure)}発</strong> ${escapeHtml(item.secondLeg.routeName)}</p>
               <p>${formatGtfsTime(item.secondLeg.arrival)}着 / 合計約${item.totalMinutes}分</p>
-            </div>
+            </button>
           `).join("")}
         </div>` : `<p class="meta">1回乗り換え候補も見つかりませんでした。出発地・目的地・時刻を変えて確認してください。</p>`}
       </div>
     `;
+    wireTransferCards(transfers);
     return;
   }
 
