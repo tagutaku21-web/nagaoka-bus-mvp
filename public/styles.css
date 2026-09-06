@@ -222,6 +222,79 @@ input:focus {
   line-height: 1.55;
 }
 
+.frequent-stops {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.section-heading {
+  margin-bottom: 10px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.section-heading p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.frequent-stop-list {
+  display: grid;
+  gap: 8px;
+}
+
+.frequent-stop-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.frequent-stop-name {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.frequent-stop-count {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.frequent-stop-row button {
+  min-height: 30px;
+  border: 1px solid rgba(15, 47, 95, 0.22);
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #f5f8ff;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.frequent-stop-row button:hover {
+  border-color: var(--brand);
+  background: #eef4ff;
+}
+
 .map-panel {
   grid-column: 1;
   grid-row: 1;
