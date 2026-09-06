@@ -332,6 +332,42 @@ input:focus {
   --pin-color: #2f765f;
 }
 
+.landmark-marker-wrap {
+  border: 0;
+  background: transparent;
+}
+
+.landmark-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  padding: 5px 8px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: rgba(15, 47, 95, 0.92);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 5px 14px rgba(17, 24, 39, 0.26);
+  transform: translate(-50%, calc(-100% - 8px));
+  white-space: nowrap;
+}
+
+.landmark-marker::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 0;
+  height: 0;
+  border: 7px solid transparent;
+  border-top-color: rgba(15, 47, 95, 0.92);
+  border-bottom: 0;
+  transform: translateX(-50%);
+}
+
 .stop-picker {
   display: grid;
   gap: 10px;
@@ -363,6 +399,47 @@ input:focus {
 
 .stop-picker-actions button:hover {
   border-color: var(--brand);
+}
+
+.landmark-picker {
+  display: grid;
+  gap: 8px;
+  min-width: 210px;
+}
+
+.landmark-picker strong {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.landmark-picker p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.landmark-stop-list {
+  display: grid;
+  gap: 7px;
+}
+
+.landmark-stop-list button {
+  min-height: 36px;
+  border: 1px solid rgba(15, 47, 95, 0.24);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #f5f8ff;
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.landmark-stop-list button:hover {
+  border-color: var(--brand);
+  background: #eef4ff;
 }
 
 .empty {
