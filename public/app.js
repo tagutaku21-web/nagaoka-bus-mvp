@@ -31,6 +31,7 @@ const els = {
   mapSummary: document.querySelector("#map-summary"),
   result: document.querySelector("#result"),
   resultPanel: document.querySelector(".result-panel"),
+  frequentStopsList: document.querySelector("#frequent-stops-list"),
   resultEmpty: document.querySelector("#result-empty")
 };
 
@@ -201,6 +202,69 @@ function stopsByNames(names) {
   return uniqueStopsByName(
     names.flatMap((name) => state.data.stops.filter((stop) => stop.name === name))
   );
+}
+
+function frequentStops(limit = 8) {
+  const countsByName = new Map();
+  for (const times of Object.values(state.data.stopTimesByTrip)) {
+    for (const time of times) {
+      const stop = state.stopById.get(time.stopId);
+      if (!stop) continue;
+      countsByName.set(stop.name, (countsByName.get(stop.name) || 0) + 1);
+    }
+  }
+
+  return uniqueStopsByName(state.data.stops)
+    .map((stop) => ({
+      stop,
+      count: countsByName.get(stop.name) || 0
+    }))
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count || a.stop.name.localeCompare(b.stop.name, "ja"))
+    .slice(0, limit);
+}
+
+function renderFrequentStops() {
+  els.frequentStopsList.innerHTML = "";
+
+  for (const item of frequentStops()) {
+    const row = document.createElement("div");
+    row.className = "frequent-stop-row";
+
+    const label = document.createElement("div");
+    label.className = "frequent-stop-name";
+    label.textContent = item.stop.name;
+
+    const count = document.createElement("span");
+    count.className = "frequent-stop-count";
+    count.textContent = `${item.count}回停車`;
+    label.append(count);
+
+    const originButton = document.createElement("button");
+    originButton.type = "button";
+    originButton.textContent = "出発";
+    originButton.addEventListener("click", () => {
+      selectOrigin(item.stop, { keepDestination: Boolean(state.destination) });
+      if (state.destination) {
+        renderResultAndShow();
+      }
+    });
+
+    const destinationButton = document.createElement("button");
+    destinationButton.type = "button";
+    destinationButton.textContent = "目的地";
+    destinationButton.addEventListener("click", () => {
+      selectDestination(item.stop);
+      if (state.origin) {
+        renderResultAndShow();
+        return;
+      }
+      els.status.textContent = `${item.stop.name} を目的地にしました。出発バス停を選んでください。`;
+    });
+
+    row.append(label, originButton, destinationButton);
+    els.frequentStopsList.append(row);
+  }
 }
 
 function stopBadge(stop) {
@@ -982,6 +1046,7 @@ async function init() {
   initMap();
   plotStops();
   plotLandmarks();
+  renderFrequentStops();
   wireSearch();
 
   if (!state.data.stops.length) {
