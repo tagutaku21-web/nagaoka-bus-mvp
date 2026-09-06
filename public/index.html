@@ -69,12 +69,20 @@
         <button id="swap-button" class="secondary-button" type="button" disabled>出発と目的地を入れ替える</button>
         <button id="search-button" type="button">次のバスを見る</button>
         <p id="status" class="status">GTFSデータを読み込み中です。</p>
+
+        <section class="frequent-stops" aria-labelledby="frequent-stops-title">
+          <div class="section-heading">
+            <h2 id="frequent-stops-title">よく使うバス停</h2>
+            <p>時刻表上で停車回数が多い順</p>
+          </div>
+          <div id="frequent-stops-list" class="frequent-stop-list"></div>
+        </section>
       </section>
 
       <section class="result-panel" aria-live="polite">
         <div id="result-empty" class="empty">
           <h2>どこから、どこへ？</h2>
-          <p>左の検索、または地図上のバス停から出発地を選んでください。</p>
+          <p>検索欄、または地図上のバス停から出発地を選んでください。</p>
         </div>
         <div id="result" class="result hidden"></div>
       </section>
