@@ -102,39 +102,6 @@ label {
   background: #fff3d2;
 }
 
-.destination-presets {
-  margin-bottom: 18px;
-}
-
-.destination-presets p {
-  margin-bottom: 8px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.preset-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.preset-grid button {
-  min-height: 42px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 9px 10px;
-  background: #fff;
-  color: var(--brand);
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.preset-grid button:hover {
-  border-color: var(--brand);
-  background: #f5f8ff;
-}
-
 .secondary-button {
   min-height: 42px;
   border: 1px solid rgba(15, 47, 95, 0.22);
@@ -227,12 +194,6 @@ input:focus {
   font-size: 14px;
   line-height: 1.35;
   overflow-wrap: anywhere;
-}
-
-.preset-grid button.is-active {
-  border-color: var(--good);
-  background: #f2fbf7;
-  color: var(--good);
 }
 
 #search-button {
