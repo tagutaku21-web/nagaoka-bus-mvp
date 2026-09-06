@@ -12,6 +12,11 @@
   </head>
   <body>
     <main class="app-shell">
+      <section class="map-panel" aria-label="バス停マップ">
+        <div id="map" class="map"></div>
+        <div id="map-summary" class="map-summary">地図を読み込み中です。</div>
+      </section>
+
       <section class="search-panel" aria-labelledby="app-title">
         <p class="eyebrow">長岡市 直通検索MVP</p>
         <h1 id="app-title">バス停を押して、次のバスを見る</h1>
@@ -64,11 +69,6 @@
         <button id="swap-button" class="secondary-button" type="button" disabled>出発と目的地を入れ替える</button>
         <button id="search-button" type="button">次のバスを見る</button>
         <p id="status" class="status">GTFSデータを読み込み中です。</p>
-      </section>
-
-      <section class="map-panel" aria-label="バス停マップ">
-        <div id="map" class="map"></div>
-        <div id="map-summary" class="map-summary">地図を読み込み中です。</div>
       </section>
 
       <section class="result-panel" aria-live="polite">
