@@ -30,6 +30,7 @@ const els = {
   searchButton: document.querySelector("#search-button"),
   mapSummary: document.querySelector("#map-summary"),
   result: document.querySelector("#result"),
+  resultPanel: document.querySelector(".result-panel"),
   resultEmpty: document.querySelector("#result-empty")
 };
 
@@ -262,7 +263,7 @@ function updateLabels() {
   els.originLabel.textContent = state.origin ? state.origin.name : "地図か検索で選ぶ";
   els.destinationLabel.textContent = state.destination
     ? destinationTitle()
-    : "目的地ボタンか検索で選ぶ";
+    : "地図のランドマークか検索で選ぶ";
   els.originSummary.classList.toggle("is-set", Boolean(state.origin));
   els.destinationSummary.classList.toggle("is-set", Boolean(state.destination));
   els.searchButton.disabled = !state.origin || !state.destination;
@@ -935,6 +936,11 @@ function renderResult() {
   `;
 }
 
+function renderResultAndShow() {
+  renderResult();
+  els.resultPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function wireSearch() {
   const originCandidates = document.createElement("div");
   els.originSearch.after(originCandidates);
@@ -954,7 +960,7 @@ function wireSearch() {
     renderCandidates(destinationCandidates, findStops(els.destinationSearch.value, pool.length ? pool : state.data.stops), selectDestination);
   });
 
-  els.searchButton.addEventListener("click", renderResult);
+  els.searchButton.addEventListener("click", renderResultAndShow);
   els.swapButton.addEventListener("click", swapStops);
   els.sampleRouteButton.addEventListener("click", useSampleRoute);
   els.currentLocationButton.addEventListener("click", useCurrentLocation);
