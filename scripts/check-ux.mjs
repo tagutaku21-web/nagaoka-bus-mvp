@@ -122,6 +122,8 @@ els.rideTime.value = "09:00";
 renderTimetable(findStopByName("長岡駅前"));
 assert(els.result.innerHTML.includes("長岡駅前 の時刻表"));
 assert(els.result.innerHTML.includes("GTFSの静的時刻表"));
+assert(els.result.innerHTML.includes("方面別"));
+assert(els.result.innerHTML.includes("方面"));
 assert(els.result.innerHTML.includes("09:10"));
 
 // An express leaving the transfer stop later must beat a slow earlier bus.

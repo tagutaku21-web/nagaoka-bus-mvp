@@ -991,7 +991,7 @@ function routeName(leg) {
   return leg.routeName || leg.route?.longName || leg.route?.shortName || "路線名未設定";
 }
 
-function timetableDepartures(stop, date, limit = 80) {
+function timetableDepartures(stop, date, limit = 120) {
   const serviceIds = activeServiceIds(date);
   const nowMinutes = date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
   const stopIds = endpointIds(stop);
@@ -1022,6 +1022,7 @@ function timetableDepartures(stop, date, limit = 80) {
         departure,
         headsign: time.headsign || trip.headsign || lastStop?.name || "行先表示は現地で確認",
         routeName: route.longName || route.shortName || "路線名未設定",
+        directionId: trip.directionId || "",
         sequence: time.sequence ?? index
       });
     });
@@ -1030,6 +1031,42 @@ function timetableDepartures(stop, date, limit = 80) {
   return rows
     .sort((a, b) => a.departure - b.departure || a.routeName.localeCompare(b.routeName, "ja") || a.headsign.localeCompare(b.headsign, "ja"))
     .slice(0, limit);
+}
+
+function timetableGroupKey(row) {
+  return [
+    row.route?.id || row.trip.routeId || "",
+    row.directionId,
+    row.headsign,
+    row.stop.id
+  ].join("::");
+}
+
+function timetableGroups(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    const key = timetableGroupKey(row);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        headsign: row.headsign,
+        routeName: row.routeName,
+        stop: row.stop,
+        directionId: row.directionId,
+        rows: []
+      });
+    }
+    groups.get(key).rows.push(row);
+  }
+
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      rows: group.rows.sort((a, b) => a.departure - b.departure)
+    }))
+    .sort((a, b) => a.rows[0].departure - b.rows[0].departure
+      || a.headsign.localeCompare(b.headsign, "ja")
+      || a.routeName.localeCompare(b.routeName, "ja"));
 }
 
 function dateInFeedRange(date) {
@@ -1058,6 +1095,7 @@ function renderTimetable(stop) {
 
   const basis = `${date.getMonth() + 1}/${date.getDate()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
   const rows = timetableDepartures(stop, date);
+  const groups = timetableGroups(rows);
   const groupedStops = endpointStops(stop);
   const platformNote = stopGroupIds(stop).length > 1
     ? `<p class="facility-note">${escapeHtml(stop.name)} は ${stopGroupIds(stop).length}乗り場をまとめて表示しています。乗る向き・乗り場は各行で確認してください。</p>`
@@ -1077,21 +1115,26 @@ function renderTimetable(stop) {
   els.result.innerHTML = `<h2>${escapeHtml(stop.name)} の時刻表</h2>
     <p class="meta">${state.timeMode === "now" ? "現在時刻" : "指定日時"} ${basis}（日本時間）以降<br>GTFSの静的時刻表に基づく予定です。遅延・運休は反映されません。</p>
     ${platformNote}
+    <p class="meta">方面別に分けています。GTFSに「上り」「下り」の名称がないため、行先・路線・乗り場を手がかりに表示します。</p>
     <div class="timetable-actions">
       <button type="button" class="secondary-button" data-timetable-origin>出発にする</button>
       <button type="button" class="secondary-button" data-timetable-destination>目的地にする</button>
     </div>
     <div class="timetable-list" aria-label="${escapeHtml(stop.name)} の時刻表">
-      ${rows.map((row) => `<article class="timetable-row">
-        <div class="timetable-time">${formatGtfsTime(row.departure)}<span>${state.timeMode === "now" ? `あと${Math.max(0, Math.ceil(row.departure - (date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60)))}分` : "指定時刻以降"}</span></div>
-        <div class="timetable-main">
-          <strong>${escapeHtml(row.headsign)}</strong>
-          <span>${escapeHtml(row.routeName)}</span>
-          <small>${escapeHtml(row.stop.name)} · ${escapeHtml(platformLabel(row.stop))}</small>
-        </div>
-      </article>`).join("")}
+      ${groups.map((group) => `<section class="timetable-group">
+        <h3>${escapeHtml(group.headsign)} 方面</h3>
+        <p>${escapeHtml(group.routeName)}<br>${escapeHtml(group.stop.name)} · ${escapeHtml(platformLabel(group.stop))}</p>
+        ${group.rows.map((row) => `<article class="timetable-row">
+          <div class="timetable-time">${formatGtfsTime(row.departure)}<span>${state.timeMode === "now" ? `あと${Math.max(0, Math.ceil(row.departure - (date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60)))}分` : "指定時刻以降"}</span></div>
+          <div class="timetable-main">
+            <strong>${escapeHtml(row.headsign)}</strong>
+            <span>${escapeHtml(row.routeName)}</span>
+            <small>${escapeHtml(row.stop.name)} · ${escapeHtml(platformLabel(row.stop))}</small>
+          </div>
+        </article>`).join("")}
+      </section>`).join("")}
     </div>
-    ${rows.length >= 80 ? `<p class="meta">表示件数が多いため、直近80件まで表示しています。</p>` : ""}
+    ${rows.length >= 120 ? `<p class="meta">表示件数が多いため、直近120件まで表示しています。</p>` : ""}
     ${groupedStops.length ? `<p class="meta">この停留所グループに含まれる乗り場: ${groupedStops.map((item) => escapeHtml(item.description || item.id)).join(" / ")}</p>` : ""}`;
 
   els.result.querySelector("[data-timetable-origin]")?.addEventListener("click", () => {
