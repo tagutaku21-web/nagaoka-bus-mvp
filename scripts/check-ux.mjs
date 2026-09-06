@@ -6,7 +6,18 @@ import vm from 'node:vm';
 class Element {
   constructor() {
     this.value = ''; this.innerHTML = ''; this.textContent = ''; this.children = []; this.dataset = {}; this.events = {};
-    this.classList = { add() {}, remove() {}, toggle() {} };
+    const classes = new Set();
+    this.classList = {
+      add: (...names) => names.forEach((name) => classes.add(name)),
+      remove: (...names) => names.forEach((name) => classes.delete(name)),
+      toggle: (name, force) => {
+        const enabled = force ?? !classes.has(name);
+        if (enabled) classes.add(name);
+        else classes.delete(name);
+        return enabled;
+      },
+      contains: (name) => classes.has(name)
+    };
   }
   addEventListener(name, fn) { this.events[name] = fn; }
   dispatch(name, event = {}) { this.events[name]?.(event); }
@@ -105,6 +116,14 @@ assert.equal(state.timeMode, "now");
 assert(els.timeFields.hidden);
 assert.equal(yyyymmdd(selectedDateTime()), yyyymmdd(japanNow()));
 
+state.timeMode = "scheduled";
+els.rideDate.value = "2026-09-03";
+els.rideTime.value = "09:00";
+renderTimetable(findStopByName("長岡駅前"));
+assert(els.result.innerHTML.includes("長岡駅前 の時刻表"));
+assert(els.result.innerHTML.includes("GTFSの静的時刻表"));
+assert(els.result.innerHTML.includes("09:10"));
+
 // An express leaving the transfer stop later must beat a slow earlier bus.
 state.data = { calendar: { daily: { startDate: "20260903", endDate: "20260903", thursday: true } }, calendarDates: {},
   stops: [{ id: "a", name: "A", lat: 37, lon: 138 }, { id: "b", name: "B", lat: 37.001, lon: 138 }, { id: "c", name: "C", lat: 37.002, lon: 138 }],
@@ -119,4 +138,4 @@ assert.equal(transfers[0].secondLeg.tripId, "fast");
 assert.equal(transfers[0].secondLeg.arrival, 570);
 assert.equal(findDepartures("a", "b", new Date(2026, 8, 3, 9, 0, 30)).length, 0, "Departed buses must not appear as upcoming");
 `, context);
-console.log('UX regression checks passed: selection, transfer-only search, facilities, sorting, details, dates, Japan time, express transfers.');
+console.log('UX regression checks passed: selection, transfer-only search, facilities, sorting, details, stop timetables, dates, Japan time, express transfers.');

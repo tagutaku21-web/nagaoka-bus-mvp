@@ -252,7 +252,7 @@ input:focus {
 
 .frequent-stop-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   gap: 6px;
   align-items: center;
   padding: 8px;
@@ -476,6 +476,11 @@ input:focus {
 
 .stop-picker-actions button:hover {
   border-color: var(--brand);
+}
+
+.stop-timetable-button {
+  width: 100%;
+  min-height: 38px;
 }
 
 .landmark-picker {
@@ -770,6 +775,14 @@ button:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid
 .leg-detail { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
 .leg-detail p { margin-bottom: 8px; overflow-wrap: anywhere; }
 .facility-note { padding: 12px; background: #fff8e7; font-size: 14px; line-height: 1.6; border-radius: 8px; }
+.timetable-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0; }
+.timetable-list { display: grid; gap: 8px; margin-top: 14px; }
+.timetable-row { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.timetable-time { color: var(--good); font-size: 22px; font-weight: 900; line-height: 1.05; }
+.timetable-time span { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
+.timetable-main { min-width: 0; display: grid; gap: 4px; line-height: 1.45; }
+.timetable-main strong { overflow-wrap: anywhere; }
+.timetable-main span, .timetable-main small { min-width: 0; color: var(--muted); overflow-wrap: anywhere; }
 .candidate-list:empty { display: none; }
 .candidate-list { max-height: 280px; overflow-y: auto; }
 .candidate-list .facility-candidate { background: #fff8e7; border-color: #dbc78e; font-weight: 700; }
@@ -784,10 +797,15 @@ button:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid
   .search-panel { order: 2; }
   .result-panel { order: 3; }
   .frequent-stops { order: 4; max-height: none; padding: 16px; }
+  .frequent-stop-row { grid-template-columns: 1fr 1fr 1fr; }
+  .frequent-stop-name { grid-column: 1 / -1; }
   .map-toggle { display: block; }
   .compact-map .map-panel { height: 24dvh; min-height: 24dvh; }
   .result-panel, #result { scroll-margin-top: calc(42dvh + 12px); }
   .compact-map .result-panel, .compact-map #result { scroll-margin-top: calc(24dvh + 12px); }
+}
+@media (max-width: 420px) {
+  .timetable-actions, .timetable-row { grid-template-columns: 1fr; }
 }
 @media (max-height: 500px) and (max-width: 1120px) {
   .map-panel { position: relative; }

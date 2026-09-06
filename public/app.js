@@ -280,7 +280,12 @@ function renderFrequentStops() {
       els.status.textContent = `${item.stop.name} を目的地にしました。出発バス停を選んでください。`;
     });
 
-    row.append(label, originButton, destinationButton);
+    const timetableButton = document.createElement("button");
+    timetableButton.type = "button";
+    timetableButton.textContent = "時刻表";
+    timetableButton.addEventListener("click", () => renderTimetableAndShow(item.stop));
+
+    row.append(label, originButton, destinationButton, timetableButton);
     els.frequentStopsList.append(row);
   }
 }
@@ -443,6 +448,16 @@ function openStopPicker(stop, latLng) {
 
   actions.append(originButton, destinationButton);
   panel.append(actions);
+
+  const timetableButton = document.createElement("button");
+  timetableButton.type = "button";
+  timetableButton.className = "secondary-button stop-timetable-button";
+  timetableButton.textContent = "このバス停の時刻表を見る";
+  timetableButton.addEventListener("click", () => {
+    state.map.closePopup();
+    renderTimetableAndShow(stop);
+  });
+  panel.append(timetableButton);
 
   L.popup({ closeButton: true, autoPan: true })
     .setLatLng(latLng)
@@ -976,6 +991,119 @@ function routeName(leg) {
   return leg.routeName || leg.route?.longName || leg.route?.shortName || "路線名未設定";
 }
 
+function timetableDepartures(stop, date, limit = 80) {
+  const serviceIds = activeServiceIds(date);
+  const nowMinutes = date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
+  const stopIds = endpointIds(stop);
+  const rows = [];
+  const seen = new Set();
+
+  for (const [tripId, times] of Object.entries(state.data.stopTimesByTrip)) {
+    const trip = state.data.trips[tripId];
+    if (!trip || !serviceIds.has(trip.serviceId)) continue;
+
+    const route = state.data.routes[trip.routeId] || {};
+    times.forEach((time, index) => {
+      if (!stopIds.has(time.stopId)) return;
+      const departure = parseGtfsTime(time.departure);
+      if (departure < nowMinutes) return;
+      const key = `${tripId}:${time.stopId}:${time.sequence ?? index}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      const actualStop = state.stopById.get(time.stopId) || stop;
+      const lastStopTime = times[times.length - 1];
+      const lastStop = state.stopById.get(lastStopTime?.stopId);
+      rows.push({
+        tripId,
+        trip,
+        route,
+        stop: actualStop,
+        departure,
+        headsign: time.headsign || trip.headsign || lastStop?.name || "行先表示は現地で確認",
+        routeName: route.longName || route.shortName || "路線名未設定",
+        sequence: time.sequence ?? index
+      });
+    });
+  }
+
+  return rows
+    .sort((a, b) => a.departure - b.departure || a.routeName.localeCompare(b.routeName, "ja") || a.headsign.localeCompare(b.headsign, "ja"))
+    .slice(0, limit);
+}
+
+function dateInFeedRange(date) {
+  const dates = Object.values(state.data.calendar);
+  const key = yyyymmdd(date);
+  const feed = state.data.feed || {};
+  if (feed.feed_start_date && feed.feed_end_date) return key >= feed.feed_start_date && key <= feed.feed_end_date;
+  return dates.some((service) => key >= service.startDate && key <= service.endDate) || Object.keys(state.data.calendarDates[key] || {}).length > 0;
+}
+
+function renderTimetable(stop) {
+  if (!state.data || !stop) return;
+  const date = selectedDateTime();
+  if (!Number.isFinite(date.getTime())) {
+    invalidateResults("時刻表を見るには日付と時刻を入力してください。");
+    return;
+  }
+
+  state.hasResults = false;
+  state.journeys = [];
+  state.activeJourneyKey = "";
+  clearRouteSigns();
+  clearCandidates();
+  els.resultEmpty.classList.add("hidden");
+  els.result.classList.remove("hidden");
+
+  const basis = `${date.getMonth() + 1}/${date.getDate()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const rows = timetableDepartures(stop, date);
+  const groupedStops = endpointStops(stop);
+  const platformNote = stopGroupIds(stop).length > 1
+    ? `<p class="facility-note">${escapeHtml(stop.name)} は ${stopGroupIds(stop).length}乗り場をまとめて表示しています。乗る向き・乗り場は各行で確認してください。</p>`
+    : "";
+  els.status.textContent = `${stop.name} の時刻表 · ${basis}（日本時間）以降`;
+
+  if (!rows.length) {
+    const inRange = dateInFeedRange(date);
+    els.result.innerHTML = `<h2>${escapeHtml(stop.name)} の時刻表</h2>
+      <p class="meta">${state.timeMode === "now" ? "現在時刻" : "指定日時"} ${basis}（日本時間）以降<br>GTFSの静的時刻表に基づく予定です。遅延・運休は反映されません。</p>
+      ${platformNote}
+      <div class="next-card"><h3>${inRange ? "この日時以降の便が見つかりません" : "この日付の時刻表データがありません"}</h3>
+      <p>${inRange ? "別の時刻にするか、近くのバス停も確認してください。" : "対応期間内の日付を選んでください。運休とは限りません。"}</p></div>`;
+    return;
+  }
+
+  els.result.innerHTML = `<h2>${escapeHtml(stop.name)} の時刻表</h2>
+    <p class="meta">${state.timeMode === "now" ? "現在時刻" : "指定日時"} ${basis}（日本時間）以降<br>GTFSの静的時刻表に基づく予定です。遅延・運休は反映されません。</p>
+    ${platformNote}
+    <div class="timetable-actions">
+      <button type="button" class="secondary-button" data-timetable-origin>出発にする</button>
+      <button type="button" class="secondary-button" data-timetable-destination>目的地にする</button>
+    </div>
+    <div class="timetable-list" aria-label="${escapeHtml(stop.name)} の時刻表">
+      ${rows.map((row) => `<article class="timetable-row">
+        <div class="timetable-time">${formatGtfsTime(row.departure)}<span>${state.timeMode === "now" ? `あと${Math.max(0, Math.ceil(row.departure - (date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60)))}分` : "指定時刻以降"}</span></div>
+        <div class="timetable-main">
+          <strong>${escapeHtml(row.headsign)}</strong>
+          <span>${escapeHtml(row.routeName)}</span>
+          <small>${escapeHtml(row.stop.name)} · ${escapeHtml(platformLabel(row.stop))}</small>
+        </div>
+      </article>`).join("")}
+    </div>
+    ${rows.length >= 80 ? `<p class="meta">表示件数が多いため、直近80件まで表示しています。</p>` : ""}
+    ${groupedStops.length ? `<p class="meta">この停留所グループに含まれる乗り場: ${groupedStops.map((item) => escapeHtml(item.description || item.id)).join(" / ")}</p>` : ""}`;
+
+  els.result.querySelector("[data-timetable-origin]")?.addEventListener("click", () => {
+    selectOrigin(stop);
+    if (state.destination) showResults();
+  });
+  els.result.querySelector("[data-timetable-destination]")?.addEventListener("click", () => {
+    selectDestination(stop);
+    if (state.origin) showResults();
+  });
+}
+
 function legDetails(leg, index) {
   const from = leg.originStop || leg.transferStop;
   const to = leg.destinationStop || leg.transferStop;
@@ -1049,12 +1177,7 @@ function renderResult({ refresh = false } = {}) {
     <p class="meta">${state.timeMode === "now" ? "現在時刻" : "指定日時"} ${basis}（日本時間）<br>時刻表に基づく予定です。遅延・運休は反映されません。バス停までの移動時間は含みません。</p>`;
   if (!state.journeys.length) {
     clearRouteSigns();
-    const dates = Object.values(state.data.calendar);
-    const key = yyyymmdd(date);
-    const feed = state.data.feed || {};
-    const inRange = feed.feed_start_date && feed.feed_end_date
-      ? key >= feed.feed_start_date && key <= feed.feed_end_date
-      : dates.some((service) => key >= service.startDate && key <= service.endDate) || Object.keys(state.data.calendarDates[key] || {}).length > 0;
+    const inRange = dateInFeedRange(date);
     els.result.innerHTML = `${heading}<div class="next-card"><h3>${inRange ? "この日時以降の便が見つかりません" : "この日付の時刻表データがありません"}</h3>
       <p>${inRange ? "当日分の直通・1回乗り換えを検索しました。別の時刻や近くのバス停でもお試しください。" : "対応期間内の日付を選んでください。運休とは限りません。"}</p></div>`;
     return;
@@ -1093,8 +1216,13 @@ function renderResultAndShow() {
   showResults();
 }
 
+function renderTimetableAndShow(stop) {
+  renderTimetable(stop);
+  showResults();
+}
+
 function showResults() {
-  if (state.hasResults) els.resultPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (!els.result.classList.contains("hidden")) els.resultPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function wireSearch() {
