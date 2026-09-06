@@ -26,7 +26,6 @@ const els = {
   sampleRouteButton: document.querySelector("#sample-route-button"),
   currentLocationButton: document.querySelector("#current-location-button"),
   swapButton: document.querySelector("#swap-button"),
-  destinationPresets: document.querySelectorAll("[data-destination]"),
   searchButton: document.querySelector("#search-button"),
   mapSummary: document.querySelector("#map-summary"),
   result: document.querySelector("#result"),
@@ -210,11 +209,6 @@ function updateLabels() {
   els.searchButton.disabled = !state.origin || !state.destination;
   els.searchButton.textContent = state.origin && state.destination ? "次のバスを見る" : "出発と目的地を選んでください";
   els.swapButton.disabled = !state.origin || !state.destination;
-  for (const button of els.destinationPresets) {
-    const isActive = state.destination?.name === button.dataset.destination;
-    button.classList.toggle("is-active", isActive);
-    button.setAttribute("aria-pressed", String(isActive));
-  }
 }
 
 function selectOrigin(stop, options = {}) {
@@ -340,33 +334,6 @@ function useSampleRoute() {
   selectDestination(destination);
   renderResult();
   els.result.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function useDestinationPreset(stopName, displayName = stopName) {
-  if (!state.data) {
-    els.status.textContent = "GTFSデータを読み込み中です。少し待ってからもう一度押してください。";
-    return;
-  }
-
-  const destination = findStopByName(stopName);
-  if (!destination) {
-    els.status.textContent = `${stopName} に対応する停留所が見つかりませんでした。`;
-    return;
-  }
-
-  if (!state.origin && destination.name !== "長岡駅前") {
-    const defaultOrigin = findStopByName("長岡駅前");
-    if (defaultOrigin) selectOrigin(defaultOrigin);
-  }
-
-  selectDestination(destination, { displayName });
-  if (state.origin) {
-    renderResult();
-    els.result.scrollIntoView({ behavior: "smooth", block: "start" });
-    return;
-  }
-
-  els.status.textContent = `${destinationTitle()} を目的地にしました。出発バス停を選んでください。`;
 }
 
 function nearestStop(position) {
@@ -862,9 +829,6 @@ function wireSearch() {
   els.swapButton.addEventListener("click", swapStops);
   els.sampleRouteButton.addEventListener("click", useSampleRoute);
   els.currentLocationButton.addEventListener("click", useCurrentLocation);
-  for (const button of els.destinationPresets) {
-    button.addEventListener("click", () => useDestinationPreset(button.dataset.destination, button.dataset.destinationLabel || button.textContent.trim()));
-  }
 }
 
 async function init() {
