@@ -9,6 +9,7 @@ const state = {
   map: null,
   routeLayer: null,
   markerLayer: null,
+  landmarkLayer: null,
   userMarker: null
 };
 
@@ -124,6 +125,29 @@ const searchAliases = [
   ["北長岡駅", ["北長岡駅角"]]
 ];
 
+const landmarks = [
+  {
+    name: "長岡駅",
+    stopNames: ["長岡駅前"]
+  },
+  {
+    name: "アオーレ長岡",
+    stopNames: ["アオーレ長岡前", "長岡駅前"]
+  },
+  {
+    name: "リバーサイド千秋",
+    stopNames: ["イオン長岡店前", "センタープラザ前", "子育ての駅千秋"]
+  },
+  {
+    name: "長岡赤十字病院",
+    stopNames: ["日赤病院前"]
+  },
+  {
+    name: "立川綜合病院",
+    stopNames: ["立川綜合病院"]
+  }
+];
+
 function expandSearchTerms(query) {
   const term = normalize(query);
   if (!term) return [];
@@ -170,6 +194,12 @@ function uniqueStopsByName(stops) {
     unique.push(stop);
   }
   return unique;
+}
+
+function stopsByNames(names) {
+  return uniqueStopsByName(
+    names.flatMap((name) => state.data.stops.filter((stop) => stop.name === name))
+  );
 }
 
 function stopBadge(stop) {
@@ -313,6 +343,48 @@ function openStopPicker(stop, latLng) {
 
   actions.append(originButton, destinationButton);
   panel.append(actions);
+
+  L.popup({ closeButton: true, autoPan: true })
+    .setLatLng(latLng)
+    .setContent(panel)
+    .openOn(state.map);
+}
+
+function openLandmarkPicker(landmark, latLng) {
+  if (!state.map) return;
+
+  const stops = stopsByNames(landmark.stopNames);
+  const panel = document.createElement("div");
+  panel.className = "landmark-picker";
+
+  const title = document.createElement("strong");
+  title.textContent = landmark.name;
+  panel.append(title);
+
+  const note = document.createElement("p");
+  note.textContent = "近くのバス停を目的地にします";
+  panel.append(note);
+
+  const list = document.createElement("div");
+  list.className = "landmark-stop-list";
+  for (const stop of stops) {
+    const button = document.createElement("button");
+    button.type = "button";
+    const badge = stopBadge(stop);
+    button.textContent = badge ? `${stop.name}（${badge}）` : stop.name;
+    button.addEventListener("click", () => {
+      selectDestination(stop, { displayName: landmark.name });
+      state.map.closePopup();
+      if (state.origin) {
+        renderResult();
+        els.result.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      els.status.textContent = `${destinationTitle()} を目的地にしました。出発バス停を選んでください。`;
+    });
+    list.append(button);
+  }
+  panel.append(list);
 
   L.popup({ closeButton: true, autoPan: true })
     .setLatLng(latLng)
@@ -591,6 +663,7 @@ function initMap() {
 
   state.routeLayer = L.layerGroup().addTo(state.map);
   state.markerLayer = L.layerGroup().addTo(state.map);
+  state.landmarkLayer = L.layerGroup().addTo(state.map);
   state.map.on("click", selectNearestMarker);
 }
 
@@ -627,6 +700,33 @@ function plotStops() {
 
   state.map.fitBounds(bounds, { padding: [24, 24] });
   updateMapSummary();
+}
+
+function plotLandmarks() {
+  state.landmarkLayer.clearLayers();
+
+  for (const landmark of landmarks) {
+    const stops = stopsByNames(landmark.stopNames);
+    if (!stops.length) continue;
+
+    const lat = stops.reduce((sum, stop) => sum + stop.lat, 0) / stops.length;
+    const lon = stops.reduce((sum, stop) => sum + stop.lon, 0) / stops.length;
+    const marker = L.marker([lat, lon], {
+      zIndexOffset: 800,
+      icon: L.divIcon({
+        className: "landmark-marker-wrap",
+        html: `<span class="landmark-marker">${escapeHtml(landmark.name)}</span>`,
+        iconSize: [1, 1],
+        iconAnchor: [0, 0]
+      })
+    });
+
+    marker.on("click", (event) => {
+      L.DomEvent.stopPropagation(event);
+      openLandmarkPicker(landmark, marker.getLatLng());
+    });
+    marker.addTo(state.landmarkLayer);
+  }
 }
 
 function findDepartures(originId, destinationId, date) {
@@ -875,6 +975,7 @@ async function init() {
 
   initMap();
   plotStops();
+  plotLandmarks();
   wireSearch();
 
   if (!state.data.stops.length) {
