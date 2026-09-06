@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>長岡バス直感検索 MVP</title>
+    <title>長岡バス直感検索</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -14,15 +14,16 @@
     <main class="app-shell">
       <section class="map-panel" aria-label="バス停マップ">
         <div id="map" class="map"></div>
+        <button id="map-toggle" class="secondary-button map-toggle" type="button" aria-expanded="true" aria-controls="map">地図を小さく</button>
         <div id="map-summary" class="map-summary">地図を読み込み中です。</div>
       </section>
 
       <section class="search-panel" aria-labelledby="app-title">
-        <p class="eyebrow">長岡市 直通検索MVP</p>
-        <h1 id="app-title">バス停を押して、次のバスを見る</h1>
+        <p class="eyebrow">長岡のバスを探す</p>
+        <h1 id="app-title">どこから、どこへ？</h1>
 
-        <div class="quick-route" aria-label="検証用ルート">
-          <button id="sample-route-button" type="button">長岡駅前 → 日赤病院前</button>
+        <div class="quick-route" aria-label="検索例">
+          <button id="sample-route-button" type="button">検索例: 長岡駅前 → 日赤病院前</button>
         </div>
 
         <div class="field">
@@ -38,7 +39,11 @@
           <input id="destination-search" type="search" placeholder="例: 日赤病院前 / リバーサイド千秋">
         </div>
 
-        <div class="time-grid">
+        <div class="field">
+          <label for="time-mode">出発日時</label>
+          <select id="time-mode"><option value="now">今すぐ出発</option><option value="scheduled">日時を指定する</option></select>
+        </div>
+        <div id="time-fields" class="time-grid" hidden>
           <div class="field">
             <label for="ride-date">日付</label>
             <input id="ride-date" type="date">
@@ -67,27 +72,31 @@
         </div>
 
         <button id="swap-button" class="secondary-button" type="button" disabled>出発と目的地を入れ替える</button>
+        <div class="field sort-field"><label for="journey-order">表示順</label>
+          <select id="journey-order"><option value="direct">乗り換えが少ない順</option><option value="arrival">バス停への到着が早い順</option></select></div>
         <button id="search-button" type="button">次のバスを見る</button>
-        <p id="status" class="status">GTFSデータを読み込み中です。</p>
+        <p id="status" class="status" role="status">GTFSデータを読み込み中です。</p>
 
-        <section class="frequent-stops" aria-labelledby="frequent-stops-title">
-          <div class="section-heading">
-            <h2 id="frequent-stops-title">よく使うバス停</h2>
-            <p>時刻表上で停車回数が多い順</p>
-          </div>
-          <div id="frequent-stops-list" class="frequent-stop-list"></div>
-        </section>
+
       </section>
 
-      <section class="result-panel" aria-live="polite">
+      <section class="result-panel">
         <div id="result-empty" class="empty">
           <h2>どこから、どこへ？</h2>
           <p>検索欄、または地図上のバス停から出発地を選んでください。</p>
         </div>
         <div id="result" class="result hidden"></div>
       </section>
+        <section class="frequent-stops" aria-labelledby="frequent-stops-title">
+          <div class="section-heading">
+            <h2 id="frequent-stops-title">よく使うバス停</h2>
+            <p>収録ダイヤ全体の停車回数順（1日あたりではありません）</p>
+          </div>
+          <div id="frequent-stops-list" class="frequent-stop-list"></div>
+        </section>
     </main>
 
+    <footer class="data-credit">時刻表: <a href="https://www.city.nagaoka.niigata.jp/shisei/cate10/gtfs.html">長岡市・越後交通 GTFS</a> を加工表示 · <a href="https://www.echigo-kotsu.co.jp/contents/diagram/route/nagaoka/west.html">公式時刻表</a></footer>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="./app.js"></script>
   </body>

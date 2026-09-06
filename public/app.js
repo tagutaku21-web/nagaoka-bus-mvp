@@ -10,7 +10,11 @@ const state = {
   routeLayer: null,
   markerLayer: null,
   landmarkLayer: null,
-  userMarker: null
+  userMarker: null,
+  timeMode: "now",
+  journeys: [],
+  activeJourneyKey: "",
+  hasResults: false
 };
 
 const els = {
@@ -32,15 +36,29 @@ const els = {
   result: document.querySelector("#result"),
   resultPanel: document.querySelector(".result-panel"),
   frequentStopsList: document.querySelector("#frequent-stops-list"),
-  resultEmpty: document.querySelector("#result-empty")
+  resultEmpty: document.querySelector("#result-empty"),
+  timeMode: document.querySelector("#time-mode"),
+  timeFields: document.querySelector("#time-fields"),
+  mapToggle: document.querySelector("#map-toggle"),
+  journeyOrder: document.querySelector("#journey-order")
 };
 
 function pad(value) {
   return String(value).padStart(2, "0");
 }
 
+// Use Japan wall time regardless of the device's timezone.
+function japanNow(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"
+  }).formatToParts(now);
+  const part = (name) => Number(parts.find((p) => p.type === name).value);
+  return new Date(part("year"), part("month") - 1, part("day"), part("hour"), part("minute"), part("second"));
+}
+
 function todayInputs() {
-  const now = new Date();
+  const now = japanNow();
   els.rideDate.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   els.rideTime.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
@@ -72,6 +90,8 @@ function escapeHtml(value) {
 }
 
 function selectedDateTime() {
+  if (state.timeMode === "now") { todayInputs(); return japanNow(); }
+  if (!els.rideDate.value || !els.rideTime.value) return new Date(NaN);
   const [year, month, day] = els.rideDate.value.split("-").map(Number);
   const [hour, minute] = els.rideTime.value.split(":").map(Number);
   return new Date(year, month - 1, day, hour, minute, 0);
@@ -111,9 +131,9 @@ const searchAliases = [
   ["長岡赤十字病院", ["日赤病院前"]],
   ["赤十字病院", ["日赤病院前"]],
   ["日赤", ["日赤病院前"]],
-  ["リバーサイド千秋", ["イオン長岡店前", "センタープラザ前", "子育ての駅千秋"]],
-  ["リバーサイド", ["イオン長岡店前", "センタープラザ前", "子育ての駅千秋"]],
-  ["千秋", ["イオン長岡店前", "センタープラザ前", "子育ての駅千秋"]],
+  ["リバーサイド千秋", ["センタープラザ前", "日赤病院前"]],
+  ["リバーサイド", ["センタープラザ前", "日赤病院前"]],
+  ["千秋", ["センタープラザ前", "日赤病院前"]],
   ["アオーレ長岡", ["アオーレ長岡前"]],
   ["アオーレ", ["アオーレ長岡前"]],
   ["立川病院", ["立川綜合病院"]],
@@ -127,28 +147,28 @@ const searchAliases = [
   ["北長岡駅", ["北長岡駅角"]]
 ];
 
+// Facility coordinates are sourced separately from GTFS stops; see docs/data-sources.md.
 const landmarks = [
-  {
-    name: "長岡駅",
-    stopNames: ["長岡駅前"]
-  },
-  {
-    name: "アオーレ長岡",
-    stopNames: ["アオーレ長岡前", "長岡駅前"]
-  },
-  {
-    name: "リバーサイド千秋",
-    stopNames: ["イオン長岡店前", "センタープラザ前", "子育ての駅千秋"]
-  },
-  {
-    name: "長岡赤十字病院",
-    stopNames: ["日赤病院前"]
-  },
-  {
-    name: "立川綜合病院",
-    stopNames: ["立川綜合病院"]
-  }
+  { name: "長岡駅", aliases: ["長岡駅"], stopNames: ["長岡駅前", "長岡駅東口"], lat: 37.447321, lon: 138.854195 },
+  { name: "アオーレ長岡", aliases: ["アオーレ"], stopNames: ["アオーレ長岡前", "長岡駅前"], lat: 37.446389, lon: 138.851111 },
+  { name: "リバーサイド千秋", aliases: ["リバーサイド", "千秋"], stopNames: ["センタープラザ前", "日赤病院前"], lat: 37.460722, lon: 138.826750 },
+  { name: "長岡赤十字病院", aliases: ["日赤", "赤十字"], stopNames: ["日赤病院前"], lat: 37.460056, lon: 138.82917 },
+  { name: "立川綜合病院", aliases: ["立川", "立川総合病院"], stopNames: ["立川綜合病院"], lat: 37.422940, lon: 138.858891 }
 ];
+
+function landmarkSelection(landmark) {
+  const stops = stopsByNames(landmark.stopNames);
+  return { ...landmark, id: `landmark:${landmark.name}`, landmark: true, stopNames: stops.map((s) => s.name) };
+}
+
+function endpointStops(endpoint) {
+  return endpoint?.stopNames ? stopsByNames(endpoint.stopNames) : endpoint ? [endpoint] : [];
+}
+
+function endpointIds(endpoint) {
+  if (typeof endpoint === "string") endpoint = state.stopById.get(endpoint);
+  return new Set(endpointStops(endpoint).flatMap(stopGroupIds));
+}
 
 function expandSearchTerms(query) {
   const term = normalize(query);
@@ -244,10 +264,8 @@ function renderFrequentStops() {
     originButton.type = "button";
     originButton.textContent = "出発";
     originButton.addEventListener("click", () => {
-      selectOrigin(item.stop, { keepDestination: Boolean(state.destination) });
-      if (state.destination) {
-        renderResultAndShow();
-      }
+      selectOrigin(item.stop);
+      if (state.destination) showResults();
     });
 
     const destinationButton = document.createElement("button");
@@ -256,7 +274,7 @@ function renderFrequentStops() {
     destinationButton.addEventListener("click", () => {
       selectDestination(item.stop);
       if (state.origin) {
-        renderResultAndShow();
+        showResults();
         return;
       }
       els.status.textContent = `${item.stop.name} を目的地にしました。出発バス停を選んでください。`;
@@ -295,32 +313,65 @@ function findStops(query, pool = state.data.stops) {
   const preferred = preferredStopNames(query);
 
   const matches = pool.filter((stop) => {
-    const fields = [stop.name, stop.code, stop.description].map(normalize);
+    const fields = [stop.name, stop.code || "", stop.description || ""].map(normalize);
     return terms.some((term) => fields.some((field) => field.includes(term)));
   });
 
+  const directIds = state.origin ? new Set([...endpointIds(state.origin)].flatMap((id) => state.data.directDestinations[id] || [])) : new Set();
   return uniqueStopsByName(matches)
     .sort((a, b) => {
       const aIndex = preferred.indexOf(a.name);
       const bIndex = preferred.indexOf(b.name);
       const aRank = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
       const bRank = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
-      return aRank - bRank;
+      return aRank - bRank || Number(stopGroupIds(b).some((id) => directIds.has(id))) - Number(stopGroupIds(a).some((id) => directIds.has(id)));
     })
     .slice(0, 24);
 }
 
-function renderCandidates(container, stops, onPick) {
+function renderCandidates(container, stops, onPick, query = "", includeLandmarks = false) {
   container.innerHTML = "";
   container.className = "candidate-list";
-  for (const stop of stops) {
+  if (includeLandmarks && normalize(query)) {
+    for (const landmark of landmarks.filter((item) => [item.name, ...item.aliases].some((name) => normalize(name).includes(normalize(query)) || normalize(query) === normalize(name)))) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "facility-candidate";
+      button.textContent = `${landmark.name} — 周辺のバス停をまとめて比較`;
+      button.addEventListener("click", () => onPick(landmarkSelection(landmark)));
+      container.append(button);
+    }
+  }
+  const directIds = state.origin ? new Set([...endpointIds(state.origin)].flatMap((id) => state.data.directDestinations[id] || [])) : new Set();
+  const sorted = includeLandmarks ? [...stops].sort((a, b) => Number(stopGroupIds(b).some((id) => directIds.has(id))) - Number(stopGroupIds(a).some((id) => directIds.has(id)))) : stops;
+  for (const stop of sorted) {
     const button = document.createElement("button");
     button.type = "button";
     const badge = stopBadge(stop);
-    button.textContent = badge ? `${stop.name}（${badge}）` : stop.name;
+    button.textContent = (badge ? `${stop.name}（${badge}）` : stop.name) + (includeLandmarks && stopGroupIds(stop).some((id) => directIds.has(id)) ? " · 直通路線あり" : "");
     button.addEventListener("click", () => onPick(stop));
     container.append(button);
   }
+  if (query && !container.childElementCount) {
+    const note = document.createElement("p");
+    note.textContent = "候補が見つかりません。名前を短くするか、地図から選んでください。";
+    container.append(note);
+  }
+}
+
+function clearCandidates() {
+  document.querySelectorAll(".candidate-list").forEach((container) => { container.innerHTML = ""; });
+}
+
+function invalidateResults(message = "条件を変更しました。「次のバスを見る」で検索できます。") {
+  state.hasResults = false;
+  state.journeys = [];
+  state.activeJourneyKey = "";
+  clearRouteSigns();
+  els.result.innerHTML = "";
+  els.result.classList.add("hidden");
+  els.resultEmpty.classList.remove("hidden");
+  els.status.textContent = message;
 }
 
 function updateLabels() {
@@ -335,44 +386,28 @@ function updateLabels() {
   els.swapButton.disabled = !state.origin || !state.destination;
 }
 
-function selectOrigin(stop, options = {}) {
-  const previousDestination = state.destination;
-  const previousDestinationDisplayName = state.destinationDisplayName;
+function selectOrigin(stop) {
   state.origin = stop;
-  state.destination = options.keepDestination ? previousDestination : null;
-  state.destinationDisplayName = options.keepDestination ? previousDestinationDisplayName : "";
   els.originSearch.value = stop.name;
-  if (!options.keepDestination) els.destinationSearch.value = "";
-
-  clearRouteSigns();
-  updateMarkerStyles();
-  const marker = state.markers.get(stop.name);
-  if (marker && state.map) {
-    state.map.panTo(marker.getLatLng(), { animate: true, duration: 0.35 });
-    marker.openTooltip();
-  }
-
-  const destinationIds = new Set(stopGroupIds(stop).flatMap((id) => state.data.directDestinations[id] || []));
-  const destinations = uniqueStopsByName([...destinationIds].map((id) => state.stopById.get(id)).filter(Boolean));
-  const top = destinations.slice(0, 10).map((item) => item.name).join("、");
-  els.status.textContent = destinations.length
-    ? `この停留所から直通で行ける候補が ${destinations.length} 件あります。例: ${top}`
-    : "この停留所から直通候補を見つけられませんでした。";
-  updateLabels();
+  selectionChanged(stop);
 }
 
-function selectDestination(stop, options = {}) {
+function selectDestination(stop) {
   state.destination = stop;
-  state.destinationDisplayName = options.displayName || "";
+  state.destinationDisplayName = "";
   els.destinationSearch.value = stop.name;
-  clearRouteSigns();
+  selectionChanged(stop);
+}
+
+function selectionChanged(stop) {
+  clearCandidates();
+  invalidateResults();
   updateMarkerStyles();
-  const marker = state.markers.get(stop.name);
-  if (marker && state.map) {
-    state.map.panTo(marker.getLatLng(), { animate: true, duration: 0.35 });
-    marker.openTooltip();
-  }
   updateLabels();
+  const marker = state.markers.get(endpointStops(stop)[0]?.name);
+  if (marker && state.map) state.map.panTo(marker.getLatLng(), { animate: true, duration: 0.35 });
+  if (state.origin && state.destination) renderResult();
+  else els.status.textContent = state.origin ? "目的地を選んでください。施設名でも探せます。" : "出発バス停を選んでください。";
 }
 
 function openStopPicker(stop, latLng) {
@@ -392,9 +427,9 @@ function openStopPicker(stop, latLng) {
   originButton.type = "button";
   originButton.textContent = "出発にする";
   originButton.addEventListener("click", () => {
-    selectOrigin(stop, { keepDestination: Boolean(state.destination) });
+    selectOrigin(stop);
     state.map.closePopup();
-    if (state.destination) renderResult();
+    if (state.destination) showResults();
   });
 
   const destinationButton = document.createElement("button");
@@ -403,7 +438,7 @@ function openStopPicker(stop, latLng) {
   destinationButton.addEventListener("click", () => {
     selectDestination(stop);
     state.map.closePopup();
-    if (state.origin) renderResult();
+    if (state.origin) showResults();
   });
 
   actions.append(originButton, destinationButton);
@@ -417,44 +452,22 @@ function openStopPicker(stop, latLng) {
 
 function openLandmarkPicker(landmark, latLng) {
   if (!state.map) return;
-
-  const stops = stopsByNames(landmark.stopNames);
   const panel = document.createElement("div");
   panel.className = "landmark-picker";
-
   const title = document.createElement("strong");
   title.textContent = landmark.name;
-  panel.append(title);
-
   const note = document.createElement("p");
-  note.textContent = "近くのバス停を目的地にします";
-  panel.append(note);
-
-  const list = document.createElement("div");
-  list.className = "landmark-stop-list";
-  for (const stop of stops) {
-    const button = document.createElement("button");
-    button.type = "button";
-    const badge = stopBadge(stop);
-    button.textContent = badge ? `${stop.name}（${badge}）` : stop.name;
-    button.addEventListener("click", () => {
-      selectDestination(stop, { displayName: landmark.name });
-      state.map.closePopup();
-      if (state.origin) {
-        renderResult();
-        els.result.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-      }
-      els.status.textContent = `${destinationTitle()} を目的地にしました。出発バス停を選んでください。`;
-    });
-    list.append(button);
-  }
-  panel.append(list);
-
-  L.popup({ closeButton: true, autoPan: true })
-    .setLatLng(latLng)
-    .setContent(panel)
-    .openOn(state.map);
+  note.textContent = `候補: ${landmark.stopNames.join("・")}${landmark.accessPoint ? "（ピンは病院のバス乗降場）" : ""}`;
+  const button = document.createElement("button");
+  button.className = "secondary-button";
+  button.textContent = "ここへ行く · バス停をまとめて比較";
+  button.addEventListener("click", () => {
+    selectDestination(landmarkSelection(landmark));
+    state.map.closePopup();
+    if (state.origin) showResults();
+  });
+  panel.append(title, note, button);
+  L.popup({ closeButton: true, autoPan: true }).setLatLng(latLng).setContent(panel).openOn(state.map);
 }
 
 function swapStops() {
@@ -466,9 +479,11 @@ function swapStops() {
   state.destinationDisplayName = "";
   els.originSearch.value = state.origin.name;
   els.destinationSearch.value = state.destination.name;
+  clearCandidates();
+  invalidateResults();
   updateMarkerStyles();
   updateLabels();
-  renderResult();
+  renderResultAndShow();
 }
 
 function findStopByName(name) {
@@ -476,11 +491,7 @@ function findStopByName(name) {
 }
 
 function destinationTitle() {
-  if (!state.destination) return "";
-  if (!state.destinationDisplayName || state.destinationDisplayName === state.destination.name) {
-    return state.destination.name;
-  }
-  return `${state.destinationDisplayName}（最寄り: ${state.destination.name}）`;
+  return state.destination?.name || "";
 }
 
 function useSampleRoute() {
@@ -498,8 +509,7 @@ function useSampleRoute() {
 
   selectOrigin(origin);
   selectDestination(destination);
-  renderResult();
-  els.result.scrollIntoView({ behavior: "smooth", block: "start" });
+  showResults();
 }
 
 function nearestStop(position) {
@@ -553,23 +563,20 @@ function useCurrentLocation() {
       const nearest = nearestStop(position);
       els.currentLocationButton.disabled = false;
 
-      if (!nearest) {
-        els.status.textContent = "近くのバス停を見つけられませんでした。";
+      if (!nearest || nearest.distance > 2000) {
+        els.status.textContent = "現在地から2km以内に収録済みのバス停がありません。出発地を入力してください。";
         return;
       }
 
       showUserLocation(position);
-      selectOrigin(nearest.stop, { keepDestination: Boolean(state.destination) });
+      selectOrigin(nearest.stop);
       const marker = state.markers.get(nearest.stop.name);
       if (marker && state.map) {
         state.map.setView(marker.getLatLng(), Math.max(state.map.getZoom(), 15), { animate: true });
       }
-      els.status.textContent = `最寄り候補は ${nearest.stop.name}（${formatDistance(nearest.distance)}）です。`;
+      els.status.textContent = `最寄り候補は ${nearest.stop.name}（直線距離${formatDistance(nearest.distance)}）です。バス停までの移動時間は検索に含みません。`;
 
-      if (state.destination) {
-        renderResult();
-        els.result.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      if (state.destination) showResults();
     },
     () => {
       els.currentLocationButton.disabled = false;
@@ -604,8 +611,8 @@ function selectNearestMarker(event) {
 }
 
 function markerStyle(stopName) {
-  const isOrigin = state.origin?.name === stopName;
-  const isDestination = state.destination?.name === stopName;
+  const isOrigin = endpointStops(state.origin).some((s) => s.name === stopName);
+  const isDestination = endpointStops(state.destination).some((s) => s.name === stopName);
   return {
     radius: isOrigin || isDestination ? 8 : 5,
     color: "#ffffff",
@@ -700,20 +707,6 @@ function drawTransferRoute(transfer) {
   ]);
 }
 
-function wireTransferCards(transfers) {
-  els.result.querySelectorAll("[data-transfer-index]").forEach((card) => {
-    card.addEventListener("click", () => {
-      const index = Number(card.dataset.transferIndex);
-      const transfer = transfers[index];
-      if (!transfer) return;
-
-      drawTransferRoute(transfer);
-      els.result.querySelectorAll("[data-transfer-index]").forEach((item) => {
-        item.classList.toggle("is-active", item === card);
-      });
-    });
-  });
-}
 
 function initMap() {
   state.map = L.map(els.map, {
@@ -774,13 +767,13 @@ function plotLandmarks() {
     const stops = stopsByNames(landmark.stopNames);
     if (!stops.length) continue;
 
-    const lat = stops.reduce((sum, stop) => sum + stop.lat, 0) / stops.length;
-    const lon = stops.reduce((sum, stop) => sum + stop.lon, 0) / stops.length;
+    const lat = landmark.lat ?? stops[0].lat;
+    const lon = landmark.lon ?? stops[0].lon;
     const marker = L.marker([lat, lon], {
       zIndexOffset: 800,
       icon: L.divIcon({
         className: "landmark-marker-wrap",
-        html: `<span class="landmark-marker">${escapeHtml(landmark.name)}</span>`,
+        html: `<span class="landmark-marker">${escapeHtml(landmark.name)}${landmark.accessPoint ? " 乗降場" : ""}</span>`,
         iconSize: [1, 1],
         iconAnchor: [0, 0]
       })
@@ -796,16 +789,16 @@ function plotLandmarks() {
 
 function findDepartures(originId, destinationId, date) {
   const serviceIds = activeServiceIds(date);
-  const nowMinutes = date.getHours() * 60 + date.getMinutes();
-  const originIds = new Set(stopGroupIds(state.stopById.get(originId) || state.origin));
-  const destinationIds = new Set(stopGroupIds(state.stopById.get(destinationId) || state.destination));
+  const nowMinutes = date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
+  const originIds = endpointIds(originId);
+  const destinationIds = endpointIds(destinationId);
   const results = [];
 
   for (const [tripId, times] of Object.entries(state.data.stopTimesByTrip)) {
     const trip = state.data.trips[tripId];
     if (!trip || !serviceIds.has(trip.serviceId)) continue;
 
-    const originIndex = times.findIndex((time) => originIds.has(time.stopId));
+    const originIndex = times.findIndex((time) => originIds.has(time.stopId) && parseGtfsTime(time.departure) >= nowMinutes);
     if (originIndex < 0) continue;
 
     const destinationIndex = times.findIndex((time, index) => index > originIndex && destinationIds.has(time.stopId));
@@ -820,6 +813,7 @@ function findDepartures(originId, destinationId, date) {
     const actualOrigin = state.stopById.get(originTime.stopId) || state.origin;
     const actualDestination = state.stopById.get(destinationTime.stopId) || state.destination;
     results.push({
+      tripId,
       trip,
       route,
       departure: departMinutes,
@@ -836,14 +830,14 @@ function findDepartures(originId, destinationId, date) {
     });
   }
 
-  return results.sort((a, b) => a.departure - b.departure).slice(0, 5);
+  return results.sort((a, b) => a.departure - b.departure);
 }
 
 function findTransferDepartures(originId, destinationId, date) {
   const serviceIds = activeServiceIds(date);
-  const nowMinutes = date.getHours() * 60 + date.getMinutes();
-  const originIds = new Set(stopGroupIds(state.stopById.get(originId) || state.origin));
-  const destinationIds = new Set(stopGroupIds(state.stopById.get(destinationId) || state.destination));
+  const nowMinutes = date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
+  const originIds = endpointIds(originId);
+  const destinationIds = endpointIds(destinationId);
   const minTransferMinutes = 5;
   const maxTransferMinutes = 90;
   const firstLegs = [];
@@ -855,7 +849,7 @@ function findTransferDepartures(originId, destinationId, date) {
 
     const route = state.data.routes[trip.routeId] || {};
     const routeName = route.longName || route.shortName || "路線名未設定";
-    const originIndex = times.findIndex((time) => originIds.has(time.stopId));
+    const originIndex = times.findIndex((time) => originIds.has(time.stopId) && parseGtfsTime(time.departure) >= nowMinutes);
     if (originIndex >= 0) {
       const departure = parseGtfsTime(times[originIndex].departure);
       if (departure >= nowMinutes) {
@@ -863,6 +857,7 @@ function findTransferDepartures(originId, destinationId, date) {
           const transferStop = state.stopById.get(times[index].stopId);
           if (!transferStop || destinationIds.has(transferStop.id)) continue;
           firstLegs.push({
+            tripId,
             transferName: transferStop.name,
             departure,
             arrival: parseGtfsTime(times[index].arrival),
@@ -887,6 +882,7 @@ function findTransferDepartures(originId, destinationId, date) {
         const departure = parseGtfsTime(times[index].departure);
         if (departure < nowMinutes) continue;
         const leg = {
+          tripId,
           transferName: transferStop.name,
           departure,
           arrival: parseGtfsTime(times[destinationIndex].arrival),
@@ -912,10 +908,11 @@ function findTransferDepartures(originId, destinationId, date) {
   const bestByTransfer = new Map();
   for (const firstLeg of firstLegs) {
     const secondLegs = secondLegsByTransfer.get(firstLeg.transferName) || [];
-    const secondLeg = secondLegs.find((candidate) => {
+    const secondLeg = secondLegs.filter((candidate) => {
       const wait = candidate.departure - firstLeg.arrival;
-      return wait >= minTransferMinutes && wait <= maxTransferMinutes;
-    });
+      return candidate.tripId !== firstLeg.tripId && wait >= minTransferMinutes && wait <= maxTransferMinutes
+        && distanceMeters(firstLeg.transferStop, candidate.transferStop) <= 400;
+    }).sort((a, b) => a.arrival - b.arrival || a.departure - b.departure)[0];
     if (!secondLeg) continue;
 
     const candidate = {
@@ -933,101 +930,221 @@ function findTransferDepartures(originId, destinationId, date) {
 
   return [...bestByTransfer.values()]
     .sort((a, b) => a.secondLeg.arrival - b.secondLeg.arrival || a.firstLeg.departure - b.firstLeg.departure)
-    .slice(0, 3);
+    .slice(0, 12);
 }
 
-function renderResult() {
-  const date = selectedDateTime();
-  const departures = findDepartures(state.origin.id, state.destination.id, date);
-  clearRouteSigns();
-  els.resultEmpty.classList.add("hidden");
-  els.result.classList.remove("hidden");
+function journeyKey(journey) {
+  return `${journey.legs.map((leg) => leg.tripId).join("/")}:${journey.departure}:${journey.destinationStop.id}`;
+}
 
-  if (!departures.length) {
-    const transfers = findTransferDepartures(state.origin.id, state.destination.id, date);
-    if (transfers.length) {
-      drawTransferRoute(transfers[0]);
+function searchJourneys(date) {
+  const origin = state.origin;
+  // Search each facility stop independently so an early stop on the same trip does not hide the preferred stop.
+  const destinations = endpointStops(state.destination);
+  const journeys = [];
+  for (const destination of destinations) {
+    if (endpointIds(origin).has(destination.id)) continue;
+    const direct = findDepartures(origin, destination, date);
+    for (const leg of direct) {
+      journeys.push({ departure: leg.departure, arrival: leg.arrival, destinationStop: leg.destinationStop,
+        transfers: 0, legs: [leg], preference: destinations.indexOf(destination) });
     }
-    els.result.innerHTML = `
-      <div class="next-card">
-        <h2>直通便が見つかりません</h2>
-        <p class="meta">直通はありません。下の候補はGTFS時刻から機械的に拾った1回乗り換え案です。</p>
-        <p class="transfer-note">候補を押すと、地図の経由バス停ピンが切り替わります。バスは道路状況で遅れることがあります。</p>
-        ${transfers.length ? `<div class="transfer-list">
-          ${transfers.map((item, index) => `
-            <button class="transfer-card ${index === 0 ? "is-active" : ""}" type="button" data-transfer-index="${index}">
-              <h3>${escapeHtml(item.transferName)}で乗り換え</h3>
-              <p><strong>${formatGtfsTime(item.firstLeg.departure)}発</strong> ${escapeHtml(item.firstLeg.routeName)}</p>
-              <p>${formatGtfsTime(item.firstLeg.arrival)}着 / ${item.wait}分待ち</p>
-              <p><strong>${formatGtfsTime(item.secondLeg.departure)}発</strong> ${escapeHtml(item.secondLeg.routeName)}</p>
-              <p>${formatGtfsTime(item.secondLeg.arrival)}着 / 合計約${item.totalMinutes}分</p>
-            </button>
-          `).join("")}
-        </div>` : `<p class="meta">1回乗り換え候補も見つかりませんでした。出発地・目的地・時刻を変えて確認してください。</p>`}
-      </div>
-    `;
-    wireTransferCards(transfers);
+    for (const transfer of findTransferDepartures(origin, destination, date)) {
+      journeys.push({ departure: transfer.firstLeg.departure, arrival: transfer.secondLeg.arrival,
+        destinationStop: transfer.secondLeg.destinationStop, transfers: 1,
+        legs: [transfer.firstLeg, transfer.secondLeg], transfer, preference: destinations.indexOf(destination) });
+    }
+  }
+  // Prefer the designated facility stop when exactly the same bus also serves another nearby stop.
+  const unique = new Map();
+  for (const journey of journeys.sort((a, b) => a.preference - b.preference)) {
+    const key = journey.legs.map((leg) => `${leg.tripId}:${leg.departure}`).join("/");
+    if (!unique.has(key)) unique.set(key, journey);
+  }
+  const list = [...unique.values()];
+  const byArrival = els.journeyOrder.value === "arrival";
+  return list.sort((a, b) => (byArrival ? a.arrival - b.arrival : a.transfers - b.transfers)
+    || (byArrival ? a.transfers - b.transfers : a.departure - b.departure)
+    || a.arrival - b.arrival || a.preference - b.preference).slice(0, 8);
+}
+
+function platformLabel(stop) {
+  return stop.platform ? `${stop.platform}番のりば` : "のりば番号はデータにありません";
+}
+
+function routeName(leg) {
+  return leg.routeName || leg.route?.longName || leg.route?.shortName || "路線名未設定";
+}
+
+function legDetails(leg, index) {
+  const from = leg.originStop || leg.transferStop;
+  const to = leg.destinationStop || leg.transferStop;
+  return `<div class="leg-detail">
+    <p><strong>${index + 1}本目 · ${formatGtfsTime(leg.departure)}発 → ${formatGtfsTime(leg.arrival)}着</strong></p>
+    <p>${escapeHtml(from.name)} → ${escapeHtml(to.name)}</p>
+    <p><strong>${escapeHtml(leg.headsign || "行先表示は現地で確認")}</strong></p>
+    <p>${escapeHtml(platformLabel(from))}</p>
+    <p class="meta">${escapeHtml(routeName(leg))}</p>
+    <button type="button" class="secondary-button" data-boarding-index="${index}">乗る場所を地図で見る</button>
+  </div>`;
+}
+
+function showJourney(index, { drawMap = true } = {}) {
+  const journey = state.journeys[index];
+  if (!journey) return;
+  state.activeJourneyKey = journeyKey(journey);
+  els.result.querySelectorAll("[data-journey-index]").forEach((button) => {
+    const active = Number(button.dataset.journeyIndex) === index;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  const detail = els.result.querySelector("#journey-detail");
+  detail.innerHTML = `<p class="selected-journey-time"><strong>${formatGtfsTime(journey.departure)}発 → ${formatGtfsTime(journey.arrival)}着</strong></p><h3>${journey.transfers ? "1回乗り換え" : "乗り換えなし"} · ${formatGtfsTime(journey.arrival)} バス停着</h3>
+    ${journey.legs.map((leg, i) => legDetails(leg, i) + (i === 0 && journey.transfer
+      ? `<p class="transfer-note">${escapeHtml(journey.transfer.transferName)}で乗り換え · 接続時間${journey.transfer.wait}分。乗り場の移動と道路状況を確認してください。</p>` : "")).join("")}
+    ${state.destination.landmark ? `<p class="meta">${escapeHtml(journey.destinationStop.name)}で下車 → ${escapeHtml(state.destination.name)}。表示の到着時刻はバス停までです。施設までの徒歩時間は含みません。</p>` : ""}`;
+  detail.querySelectorAll("[data-boarding-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const leg = journey.legs[Number(button.dataset.boardingIndex)];
+      const stop = leg.originStop || leg.transferStop;
+      if (!state.map) return;
+      state.map.setView([stop.lat, stop.lon], 18);
+      const panel = document.createElement("div");
+      panel.textContent = `${stop.name} · ${platformLabel(stop)} · ${leg.headsign || routeName(leg)}`;
+      L.popup().setLatLng([stop.lat, stop.lon]).setContent(panel).openOn(state.map);
+      document.querySelector(".map-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+  if (drawMap) {
+    if (journey.transfer) drawTransferRoute(journey.transfer);
+    else drawRouteSigns([{ stops: journey.legs[0].pathStops, kind: "direct" }]);
+  }
+}
+
+function renderResult({ refresh = false } = {}) {
+  if (!state.origin || !state.destination) return;
+  const date = selectedDateTime();
+  if (!Number.isFinite(date.getTime())) {
+    invalidateResults("日付と時刻を入力してください。");
     return;
   }
-
-  const [next, ...later] = departures;
-  drawRouteSigns([{ stops: next.pathStops, kind: "direct" }]);
-  const nowMinutes = date.getHours() * 60 + date.getMinutes();
-  const routeName = next.route.longName || next.route.shortName || "路線名未設定";
-  const rideMinutes = Math.max(0, next.arrival - next.departure);
-
-  els.result.innerHTML = `
-    <div class="next-card">
-      <p class="trip-label">${escapeHtml(state.origin.name)} → ${escapeHtml(destinationTitle())}</p>
-      <h2>次のバスまで</h2>
-      <p class="countdown">${next.departure - nowMinutes}<span>分</span></p>
-      <p class="time-main"><strong>${formatGtfsTime(next.departure)}発</strong> / ${formatGtfsTime(next.arrival)}着 / 約${rideMinutes}分</p>
-      <p class="route-name">${escapeHtml(routeName)}</p>
-      <dl class="trip-detail">
-        ${next.headsign ? `<div><dt>行先</dt><dd>${escapeHtml(next.headsign)}</dd></div>` : ""}
-        ${next.platform ? `<div><dt>乗り場</dt><dd>${escapeHtml(next.platform)}番</dd></div>` : ""}
-        <div><dt>停留所</dt><dd>${escapeHtml(next.originStop.id)} → ${escapeHtml(next.destinationStop.id)}</dd></div>
-        <div><dt>停車数</dt><dd>${next.stopCount}停留所</dd></div>
-      </dl>
-      ${later.length ? `<div class="later"><strong>次の便</strong>${later.map((item) => `
-        <div class="later-row">
-          <span>${item.departure - nowMinutes}分後</span>
-          <strong>${formatGtfsTime(item.departure)}発</strong>
-          <small>${escapeHtml(item.originStop.id)} → ${escapeHtml(item.destinationStop.id)}</small>
-        </div>
-      `).join("")}</div>` : ""}
-    </div>
-  `;
+  const originIds = endpointIds(state.origin);
+  if ([...endpointIds(state.destination)].every((id) => originIds.has(id))) {
+    invalidateResults("出発と目的地が同じです。別の場所を選んでください。");
+    return;
+  }
+  const previousKey = state.activeJourneyKey;
+  const focused = document.activeElement;
+  const focusedJourney = focused?.dataset?.journeyIndex;
+  const focusedKey = focusedJourney === undefined ? null : state.journeys[Number(focusedJourney)] && journeyKey(state.journeys[Number(focusedJourney)]);
+  const focusedBoarding = focused?.dataset?.boardingIndex;
+  state.journeys = searchJourneys(date);
+  state.hasResults = true;
+  els.resultEmpty.classList.add("hidden");
+  els.result.classList.remove("hidden");
+  const basis = `${date.getMonth() + 1}/${date.getDate()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const nowMinutes = date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
+  els.status.textContent = `${state.origin.name} → ${destinationTitle()} · ${basis}（日本時間）で検索`;
+  const heading = `<h2>${escapeHtml(state.origin.name)} → ${escapeHtml(destinationTitle())}</h2>
+    <p class="meta">${state.timeMode === "now" ? "現在時刻" : "指定日時"} ${basis}（日本時間）<br>時刻表に基づく予定です。遅延・運休は反映されません。バス停までの移動時間は含みません。</p>`;
+  if (!state.journeys.length) {
+    clearRouteSigns();
+    const dates = Object.values(state.data.calendar);
+    const key = yyyymmdd(date);
+    const feed = state.data.feed || {};
+    const inRange = feed.feed_start_date && feed.feed_end_date
+      ? key >= feed.feed_start_date && key <= feed.feed_end_date
+      : dates.some((service) => key >= service.startDate && key <= service.endDate) || Object.keys(state.data.calendarDates[key] || {}).length > 0;
+    els.result.innerHTML = `${heading}<div class="next-card"><h3>${inRange ? "この日時以降の便が見つかりません" : "この日付の時刻表データがありません"}</h3>
+      <p>${inRange ? "当日分の直通・1回乗り換えを検索しました。別の時刻や近くのバス停でもお試しください。" : "対応期間内の日付を選んでください。運休とは限りません。"}</p></div>`;
+    return;
+  }
+  els.result.innerHTML = `${heading}
+    ${state.destination.landmark ? `<p class="facility-note">${endpointStops(state.destination).map((stop) => escapeHtml(stop.name)).join("・")}への便を比較。施設までの徒歩は含みません。</p>` : ""}
+    <p class="meta">${els.journeyOrder.value === "arrival" ? "バス停への到着が早い順" : "直通を優先し、出発時刻順"} · 候補を押すと詳細と地図が切り替わります。</p>
+    <section id="journey-detail" class="next-card" aria-label="選択した便の詳細"></section>
+    <h3 class="other-journeys-title">便を選んで比較</h3>
+    <div class="journey-list">${state.journeys.map((journey, index) => `
+      <button class="transfer-card journey-card" type="button" data-journey-index="${index}" aria-pressed="false">
+        <span class="journey-badge">${journey.transfers ? "乗換1回" : "直通"}</span>
+        <strong class="journey-time">${formatGtfsTime(journey.departure)}発 → ${formatGtfsTime(journey.arrival)}着</strong>
+        <span>${state.timeMode === "now" ? "あと" : "指定時刻から"}${Math.max(0, Math.ceil(journey.departure - nowMinutes))}分 · 乗車・乗換 ${journey.arrival - journey.departure}分</span>
+        <span>${escapeHtml(journey.legs[0].headsign || routeName(journey.legs[0]))}</span>
+        <span>下車: ${escapeHtml(journey.destinationStop.name)}</span>
+      </button>`).join("")}</div>`;
+  els.result.querySelectorAll("[data-journey-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      showJourney(Number(button.dataset.journeyIndex));
+      els.result.querySelector("#journey-detail").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+  const retained = state.journeys.findIndex((journey) => journeyKey(journey) === previousKey);
+  showJourney(retained >= 0 ? retained : 0, { drawMap: !refresh || retained < 0 });
+  if (refresh && focusedKey) {
+    const focusIndex = state.journeys.findIndex((journey) => journeyKey(journey) === focusedKey);
+    els.result.querySelector(`[data-journey-index="${Math.max(0, focusIndex)}"]`)?.focus({ preventScroll: true });
+  } else if (refresh && focusedBoarding !== undefined) {
+    els.result.querySelector(`[data-boarding-index="${focusedBoarding}"]`)?.focus({ preventScroll: true });
+  }
 }
 
 function renderResultAndShow() {
   renderResult();
-  els.resultPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+  showResults();
+}
+
+function showResults() {
+  if (state.hasResults) els.resultPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function wireSearch() {
   const originCandidates = document.createElement("div");
   els.originSearch.after(originCandidates);
-
   const destinationCandidates = document.createElement("div");
   els.destinationSearch.after(destinationCandidates);
-
-  els.originSearch.addEventListener("input", () => {
-    renderCandidates(originCandidates, findStops(els.originSearch.value), selectOrigin);
-  });
-
-  els.destinationSearch.addEventListener("input", () => {
-    const destinationIds = state.origin
-      ? new Set(stopGroupIds(state.origin).flatMap((id) => state.data.directDestinations[id] || []))
-      : new Set();
-    const pool = uniqueStopsByName([...destinationIds].map((id) => state.stopById.get(id)).filter(Boolean));
-    renderCandidates(destinationCandidates, findStops(els.destinationSearch.value, pool.length ? pool : state.data.stops), selectDestination);
-  });
-
+  function editEndpoint(kind, input, container, onPick) {
+    state[kind] = null;
+    invalidateResults("入力した名前の候補を選んでください。");
+    updateLabels();
+    updateMarkerStyles();
+    // Never restrict candidates to direct destinations: transfers must remain searchable.
+    renderCandidates(container, findStops(input.value), onPick, input.value, kind === "destination");
+  }
+  els.originSearch.addEventListener("input", () => editEndpoint("origin", els.originSearch, originCandidates, selectOrigin));
+  els.destinationSearch.addEventListener("input", () => editEndpoint("destination", els.destinationSearch, destinationCandidates, selectDestination));
+  for (const [input, container] of [[els.originSearch, originCandidates], [els.destinationSearch, destinationCandidates]]) {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") container.innerHTML = "";
+      if (event.key === "ArrowDown") { event.preventDefault(); container.querySelector("button")?.focus(); }
+      if (event.key === "Enter") { event.preventDefault(); container.querySelector("button")?.click(); }
+    });
+  }
   els.searchButton.addEventListener("click", renderResultAndShow);
   els.swapButton.addEventListener("click", swapStops);
   els.sampleRouteButton.addEventListener("click", useSampleRoute);
   els.currentLocationButton.addEventListener("click", useCurrentLocation);
+  els.timeMode.addEventListener("change", () => {
+    state.timeMode = els.timeMode.value;
+    els.timeFields.hidden = state.timeMode === "now";
+    if (state.timeMode === "now") todayInputs();
+    invalidateResults();
+    if (state.origin && state.destination) renderResult();
+  });
+  for (const input of [els.rideDate, els.rideTime]) {
+    input.addEventListener("input", () => invalidateResults("日時を変更しました。「次のバスを見る」で検索してください。"));
+  }
+  els.journeyOrder.addEventListener("change", () => { if (state.origin && state.destination) renderResult(); });
+  els.mapToggle.addEventListener("click", () => {
+    const compact = document.body.classList.toggle("compact-map");
+    els.mapToggle.textContent = compact ? "地図を大きく" : "地図を小さく";
+    els.mapToggle.setAttribute("aria-expanded", String(!compact));
+    state.map?.invalidateSize({ pan: false });
+  });
+  function refreshNow() {
+    if (state.timeMode === "now" && state.hasResults && !document.hidden) renderResult({ refresh: true });
+  }
+  setInterval(refreshNow, 30000);
+  document.addEventListener("visibilitychange", refreshNow);
 }
 
 async function init() {
@@ -1035,6 +1152,7 @@ async function init() {
   els.searchButton.disabled = true;
 
   const response = await fetch("./data/gtfs-index.json");
+  if (!response.ok) throw new Error("時刻表を取得できません。再読み込みしてください。");
   state.data = await response.json();
   state.stopById = new Map(state.data.stops.map((stop) => [stop.id, stop]));
   state.stopIdsByName = new Map();
@@ -1048,6 +1166,7 @@ async function init() {
   plotLandmarks();
   renderFrequentStops();
   wireSearch();
+  updateLabels();
 
   if (!state.data.stops.length) {
     els.status.textContent = "まだGTFSが取り込まれていません。READMEの手順で public/data/gtfs-index.json を生成してください。";
