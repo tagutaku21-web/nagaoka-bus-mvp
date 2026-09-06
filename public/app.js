@@ -103,24 +103,25 @@ function normalize(text) {
 }
 
 const searchAliases = [
-  ["長岡駅大手口", "長岡駅前"],
-  ["長岡駅", "長岡駅前"],
-  ["長岡赤十字病院", "日赤病院前"],
-  ["赤十字病院", "日赤病院前"],
-  ["日赤", "日赤病院前"],
-  ["リバーサイド千秋", "子育ての駅千秋"],
-  ["リバーサイド", "子育ての駅千秋"],
-  ["アオーレ長岡", "アオーレ長岡前"],
-  ["アオーレ", "アオーレ長岡前"],
-  ["立川病院", "立川綜合病院"],
-  ["長岡西病院", "長岡西病院前"],
-  ["イオン長岡", "イオン長岡店前"],
-  ["長岡イオン", "イオン長岡店前"],
-  ["丘陵公園", "越後丘陵公園"],
-  ["国営越後丘陵公園", "越後丘陵公園"],
-  ["長岡造形大学", "長岡造形大学前"],
-  ["造形大学", "長岡造形大学前"],
-  ["北長岡駅", "北長岡駅角"]
+  ["長岡駅大手口", ["長岡駅前"]],
+  ["長岡駅", ["長岡駅前"]],
+  ["長岡赤十字病院", ["日赤病院前"]],
+  ["赤十字病院", ["日赤病院前"]],
+  ["日赤", ["日赤病院前"]],
+  ["リバーサイド千秋", ["イオン長岡店前", "センタープラザ前", "子育ての駅千秋"]],
+  ["リバーサイド", ["イオン長岡店前", "センタープラザ前", "子育ての駅千秋"]],
+  ["千秋", ["イオン長岡店前", "センタープラザ前", "子育ての駅千秋"]],
+  ["アオーレ長岡", ["アオーレ長岡前"]],
+  ["アオーレ", ["アオーレ長岡前"]],
+  ["立川病院", ["立川綜合病院"]],
+  ["長岡西病院", ["長岡西病院前"]],
+  ["イオン長岡", ["イオン長岡店前"]],
+  ["長岡イオン", ["イオン長岡店前"]],
+  ["丘陵公園", ["越後丘陵公園"]],
+  ["国営越後丘陵公園", ["越後丘陵公園"]],
+  ["長岡造形大学", ["長岡造形大学前"]],
+  ["造形大学", ["長岡造形大学前"]],
+  ["北長岡駅", ["北長岡駅角"]]
 ];
 
 function expandSearchTerms(query) {
@@ -128,13 +129,32 @@ function expandSearchTerms(query) {
   if (!term) return [];
 
   const terms = new Set([term]);
-  for (const [alias, stopName] of searchAliases) {
+  for (const [alias, stopNames] of searchAliases) {
     const normalizedAlias = normalize(alias);
     if (term.includes(normalizedAlias)) {
-      terms.add(normalize(stopName));
+      for (const stopName of stopNames) {
+        terms.add(normalize(stopName));
+      }
     }
   }
   return [...terms];
+}
+
+function preferredStopNames(query) {
+  const term = normalize(query);
+  if (!term) return [];
+
+  const names = [];
+  const seen = new Set();
+  for (const [alias, stopNames] of searchAliases) {
+    if (!term.includes(normalize(alias))) continue;
+    for (const stopName of stopNames) {
+      if (seen.has(stopName)) continue;
+      seen.add(stopName);
+      names.push(stopName);
+    }
+  }
+  return names;
 }
 
 function stopGroupIds(stop) {
@@ -177,13 +197,22 @@ function formatDistance(meters) {
 function findStops(query, pool = state.data.stops) {
   const terms = expandSearchTerms(query);
   if (!terms.length) return [];
+  const preferred = preferredStopNames(query);
 
   const matches = pool.filter((stop) => {
     const fields = [stop.name, stop.code, stop.description].map(normalize);
     return terms.some((term) => fields.some((field) => field.includes(term)));
   });
 
-  return uniqueStopsByName(matches).slice(0, 24);
+  return uniqueStopsByName(matches)
+    .sort((a, b) => {
+      const aIndex = preferred.indexOf(a.name);
+      const bIndex = preferred.indexOf(b.name);
+      const aRank = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+      const bRank = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+      return aRank - bRank;
+    })
+    .slice(0, 24);
 }
 
 function renderCandidates(container, stops, onPick) {
