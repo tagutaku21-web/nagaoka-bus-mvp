@@ -776,10 +776,18 @@ button:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid
 .leg-detail p { margin-bottom: 8px; overflow-wrap: anywhere; }
 .facility-note { padding: 12px; background: #fff8e7; font-size: 14px; line-height: 1.6; border-radius: 8px; }
 .timetable-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0; }
+.timetable-tabs { display: grid; gap: 8px; margin: 14px 0; }
+.timetable-tabs button { min-height: 42px; border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; background: #fff; color: var(--brand); font-weight: 900; text-align: left; cursor: pointer; }
+.timetable-tabs button.is-active { border-color: rgba(15, 47, 95, 0.45); background: #f5f8ff; box-shadow: inset 4px 0 0 var(--brand); }
 .timetable-list { display: grid; gap: 8px; margin-top: 14px; }
 .timetable-group { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fbfcfe; }
 .timetable-group h3 { margin: 0; color: var(--brand); font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
 .timetable-group p { margin: 0 0 2px; color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.timetable-route { display: grid; gap: 5px; padding-top: 10px; border-top: 1px solid var(--line); }
+.timetable-route strong { color: var(--ink); overflow-wrap: anywhere; }
+.timetable-route small { color: var(--muted); line-height: 1.4; overflow-wrap: anywhere; }
+.timetable-times { display: flex; flex-wrap: wrap; gap: 6px; }
+.timetable-times span { min-width: 54px; padding: 6px 7px; border-radius: 6px; background: #fff; color: var(--good); font-weight: 900; text-align: center; border: 1px solid rgba(11, 107, 79, 0.14); }
 .timetable-row { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .timetable-time { color: var(--good); font-size: 22px; font-weight: 900; line-height: 1.05; }
 .timetable-time span { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }

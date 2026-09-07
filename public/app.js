@@ -991,9 +991,8 @@ function routeName(leg) {
   return leg.routeName || leg.route?.longName || leg.route?.shortName || "路線名未設定";
 }
 
-function timetableDepartures(stop, date, limit = 120) {
+function timetableDepartures(stop, date, limit = 300) {
   const serviceIds = activeServiceIds(date);
-  const nowMinutes = date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
   const stopIds = endpointIds(stop);
   const rows = [];
   const seen = new Set();
@@ -1006,7 +1005,6 @@ function timetableDepartures(stop, date, limit = 120) {
     times.forEach((time, index) => {
       if (!stopIds.has(time.stopId)) return;
       const departure = parseGtfsTime(time.departure);
-      if (departure < nowMinutes) return;
       const key = `${tripId}:${time.stopId}:${time.sequence ?? index}`;
       if (seen.has(key)) return;
       seen.add(key);
@@ -1033,26 +1031,26 @@ function timetableDepartures(stop, date, limit = 120) {
     .slice(0, limit);
 }
 
-function timetableGroupKey(row) {
-  return [
-    row.route?.id || row.trip.routeId || "",
-    row.directionId,
-    row.headsign,
-    row.stop.id
-  ].join("::");
+function uniqueList(values, limit = 3) {
+  const seen = new Set();
+  const result = [];
+  for (const value of values.filter(Boolean)) {
+    if (seen.has(value)) continue;
+    seen.add(value);
+    result.push(value);
+    if (result.length >= limit) break;
+  }
+  return result;
 }
 
 function timetableGroups(rows) {
   const groups = new Map();
   for (const row of rows) {
-    const key = timetableGroupKey(row);
+    const key = row.stop.id;
     if (!groups.has(key)) {
       groups.set(key, {
         key,
-        headsign: row.headsign,
-        routeName: row.routeName,
         stop: row.stop,
-        directionId: row.directionId,
         rows: []
       });
     }
@@ -1062,11 +1060,30 @@ function timetableGroups(rows) {
   return [...groups.values()]
     .map((group) => ({
       ...group,
-      rows: group.rows.sort((a, b) => a.departure - b.departure)
+      rows: group.rows.sort((a, b) => a.departure - b.departure || a.headsign.localeCompare(b.headsign, "ja")),
+      headsigns: uniqueList(group.rows.map((row) => row.headsign), 4),
+      routeNames: uniqueList(group.rows.map((row) => row.routeName), 2)
     }))
-    .sort((a, b) => a.rows[0].departure - b.rows[0].departure
-      || a.headsign.localeCompare(b.headsign, "ja")
-      || a.routeName.localeCompare(b.routeName, "ja"));
+    .sort((a, b) => (a.stop.description || a.stop.id).localeCompare(b.stop.description || b.stop.id, "ja"));
+}
+
+function timetableSideLabel(group, index, total) {
+  const side = total === 2 ? (index === 0 ? "上り側" : "下り側") : `乗り場${index + 1}`;
+  const direction = group.headsigns.length ? `${group.headsigns.join("・")}方面` : "方面未設定";
+  return `${side} · ${direction}`;
+}
+
+function timetableRouteGroups(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    const key = `${row.routeName}::${row.headsign}`;
+    if (!groups.has(key)) groups.set(key, { key, routeName: row.routeName, headsign: row.headsign, rows: [] });
+    groups.get(key).rows.push(row);
+  }
+  return [...groups.values()].map((group) => ({
+    ...group,
+    rows: group.rows.sort((a, b) => a.departure - b.departure)
+  })).sort((a, b) => a.rows[0].departure - b.rows[0].departure);
 }
 
 function dateInFeedRange(date) {
@@ -1093,50 +1110,63 @@ function renderTimetable(stop) {
   els.resultEmpty.classList.add("hidden");
   els.result.classList.remove("hidden");
 
-  const basis = `${date.getMonth() + 1}/${date.getDate()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const basis = `${date.getMonth() + 1}/${date.getDate()}`;
   const rows = timetableDepartures(stop, date);
   const groups = timetableGroups(rows);
   const groupedStops = endpointStops(stop);
   const platformNote = stopGroupIds(stop).length > 1
-    ? `<p class="facility-note">${escapeHtml(stop.name)} は ${stopGroupIds(stop).length}乗り場をまとめて表示しています。乗る向き・乗り場は各行で確認してください。</p>`
+    ? `<p class="facility-note">${escapeHtml(stop.name)} は ${stopGroupIds(stop).length}乗り場をまとめています。上り/下り相当の切替で、実際に見るバス停側を選んでください。</p>`
     : "";
-  els.status.textContent = `${stop.name} の時刻表 · ${basis}（日本時間）以降`;
+  els.status.textContent = `${stop.name} の時刻表 · ${basis}（日本時間）`;
 
   if (!rows.length) {
     const inRange = dateInFeedRange(date);
     els.result.innerHTML = `<h2>${escapeHtml(stop.name)} の時刻表</h2>
-      <p class="meta">${state.timeMode === "now" ? "現在時刻" : "指定日時"} ${basis}（日本時間）以降<br>GTFSの静的時刻表に基づく予定です。遅延・運休は反映されません。</p>
+      <p class="meta">${basis}（日本時間）の全便<br>GTFSの静的時刻表に基づく予定です。遅延・運休は反映されません。</p>
       ${platformNote}
-      <div class="next-card"><h3>${inRange ? "この日時以降の便が見つかりません" : "この日付の時刻表データがありません"}</h3>
-      <p>${inRange ? "別の時刻にするか、近くのバス停も確認してください。" : "対応期間内の日付を選んでください。運休とは限りません。"}</p></div>`;
+      <div class="next-card"><h3>${inRange ? "この日の便が見つかりません" : "この日付の時刻表データがありません"}</h3>
+      <p>${inRange ? "近くの別のバス停も確認してください。" : "対応期間内の日付を選んでください。運休とは限りません。"}</p></div>`;
     return;
   }
 
   els.result.innerHTML = `<h2>${escapeHtml(stop.name)} の時刻表</h2>
-    <p class="meta">${state.timeMode === "now" ? "現在時刻" : "指定日時"} ${basis}（日本時間）以降<br>GTFSの静的時刻表に基づく予定です。遅延・運休は反映されません。</p>
+    <p class="meta">${basis}（日本時間）の全便<br>GTFSの静的時刻表に基づく予定です。遅延・運休は反映されません。</p>
     ${platformNote}
-    <p class="meta">方面別に分けています。GTFSに「上り」「下り」の名称がないため、行先・路線・乗り場を手がかりに表示します。</p>
+    <p class="meta">今の時刻で絞り込まず、バス停に貼ってある時刻表に近い形で表示します。GTFSに正式な上り/下り名がないため、乗り場側と行先で切り替えます。</p>
     <div class="timetable-actions">
       <button type="button" class="secondary-button" data-timetable-origin>出発にする</button>
       <button type="button" class="secondary-button" data-timetable-destination>目的地にする</button>
     </div>
+    <div class="timetable-tabs" role="tablist" aria-label="${escapeHtml(stop.name)} の上り下り切替">
+      ${groups.map((group, index) => `<button type="button" role="tab" aria-selected="${index === 0 ? "true" : "false"}" class="${index === 0 ? "is-active" : ""}" data-timetable-tab="${index}">${escapeHtml(timetableSideLabel(group, index, groups.length))}</button>`).join("")}
+    </div>
     <div class="timetable-list" aria-label="${escapeHtml(stop.name)} の時刻表">
-      ${groups.map((group) => `<section class="timetable-group">
-        <h3>${escapeHtml(group.headsign)} 方面</h3>
-        <p>${escapeHtml(group.routeName)}<br>${escapeHtml(group.stop.name)} · ${escapeHtml(platformLabel(group.stop))}</p>
-        ${group.rows.map((row) => `<article class="timetable-row">
-          <div class="timetable-time">${formatGtfsTime(row.departure)}<span>${state.timeMode === "now" ? `あと${Math.max(0, Math.ceil(row.departure - (date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60)))}分` : "指定時刻以降"}</span></div>
-          <div class="timetable-main">
-            <strong>${escapeHtml(row.headsign)}</strong>
-            <span>${escapeHtml(row.routeName)}</span>
-            <small>${escapeHtml(row.stop.name)} · ${escapeHtml(platformLabel(row.stop))}</small>
-          </div>
-        </article>`).join("")}
+      ${groups.map((group, groupIndex) => `<section class="timetable-group${groupIndex === 0 ? "" : " hidden"}" data-timetable-panel="${groupIndex}">
+        <h3>${escapeHtml(timetableSideLabel(group, groupIndex, groups.length))}</h3>
+        <p>${escapeHtml(group.stop.name)} · ${escapeHtml(platformLabel(group.stop))}<br>${escapeHtml(group.routeNames.join(" / ") || "路線名未設定")}</p>
+        ${timetableRouteGroups(group.rows).map((routeGroup) => `<div class="timetable-route">
+          <strong>${escapeHtml(routeGroup.headsign)} 方面</strong>
+          <small>${escapeHtml(routeGroup.routeName)}</small>
+          <div class="timetable-times">${routeGroup.rows.map((row) => `<span>${formatGtfsTime(row.departure)}</span>`).join("")}</div>
+        </div>`).join("")}
       </section>`).join("")}
     </div>
-    ${rows.length >= 120 ? `<p class="meta">表示件数が多いため、直近120件まで表示しています。</p>` : ""}
+    ${rows.length >= 300 ? `<p class="meta">表示件数が多いため、300件まで表示しています。</p>` : ""}
     ${groupedStops.length ? `<p class="meta">この停留所グループに含まれる乗り場: ${groupedStops.map((item) => escapeHtml(item.description || item.id)).join(" / ")}</p>` : ""}`;
 
+  els.result.querySelectorAll("[data-timetable-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = button.dataset.timetableTab;
+      els.result.querySelectorAll("[data-timetable-tab]").forEach((tab) => {
+        const active = tab.dataset.timetableTab === index;
+        tab.classList.toggle("is-active", active);
+        tab.setAttribute("aria-selected", String(active));
+      });
+      els.result.querySelectorAll("[data-timetable-panel]").forEach((panel) => {
+        panel.classList.toggle("hidden", panel.dataset.timetablePanel !== index);
+      });
+    });
+  });
   els.result.querySelector("[data-timetable-origin]")?.addEventListener("click", () => {
     selectOrigin(stop);
     if (state.destination) showResults();
