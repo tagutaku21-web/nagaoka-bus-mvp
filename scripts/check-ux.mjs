@@ -37,6 +37,8 @@ function element(id) { if (!elements.has(id)) elements.set(id, new Element()); r
 const document = { querySelector: element, createElement: () => new Element(), querySelectorAll: () => [], addEventListener() {}, hidden: false };
 const data = JSON.parse(await readFile(new URL('../public/data/gtfs-index.json', import.meta.url), 'utf8'));
 const source = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/init\(\)\.catch\([\s\S]*$/, '');
+const styles = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+assert(styles.includes('.timetable-group.hidden { display: none; }'), 'Inactive timetable direction panels must be hidden by CSS');
 const context = vm.createContext({ document, console, Intl, assert, data, setInterval() {}, navigator: {} });
 vm.runInContext(source + `
 state.data = data;
