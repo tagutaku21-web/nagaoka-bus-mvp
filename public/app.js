@@ -1073,6 +1073,14 @@ function timetableSideLabel(group, index, total) {
   return `${side} · ${direction}`;
 }
 
+function timetableSideName(index, total) {
+  return total === 2 ? (index === 0 ? "上り側" : "下り側") : `乗り場${index + 1}`;
+}
+
+function timetableSideDirection(group) {
+  return group.headsigns.length ? `${group.headsigns.join("・")}方面` : "方面未設定";
+}
+
 function timetableRouteGroups(rows) {
   const groups = new Map();
   for (const row of rows) {
@@ -1138,7 +1146,10 @@ function renderTimetable(stop) {
       <button type="button" class="secondary-button" data-timetable-destination>目的地にする</button>
     </div>
     <div class="timetable-tabs" role="tablist" aria-label="${escapeHtml(stop.name)} の上り下り切替">
-      ${groups.map((group, index) => `<button type="button" role="tab" aria-selected="${index === 0 ? "true" : "false"}" class="${index === 0 ? "is-active" : ""}" data-timetable-tab="${index}">${escapeHtml(timetableSideLabel(group, index, groups.length))}</button>`).join("")}
+      ${groups.map((group, index) => `<button type="button" role="tab" aria-selected="${index === 0 ? "true" : "false"}" class="${index === 0 ? "is-active" : ""}" data-timetable-tab="${index}">
+        <strong>${escapeHtml(timetableSideName(index, groups.length))}</strong>
+        <span>${escapeHtml(timetableSideDirection(group))}</span>
+      </button>`).join("")}
     </div>
     <div class="timetable-list" aria-label="${escapeHtml(stop.name)} の時刻表">
       ${groups.map((group, groupIndex) => `<section class="timetable-group${groupIndex === 0 ? "" : " hidden"}" data-timetable-panel="${groupIndex}">
