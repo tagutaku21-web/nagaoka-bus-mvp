@@ -137,9 +137,25 @@ const searchAliases = [
   ["アオーレ長岡", ["アオーレ長岡前"]],
   ["アオーレ", ["アオーレ長岡前"]],
   ["立川病院", ["立川綜合病院"]],
+  ["長岡中央綜合病院", ["長岡中央綜合病院"]],
+  ["中央綜合病院", ["長岡中央綜合病院"]],
+  ["中央病院", ["長岡中央綜合病院"]],
+  ["ハイブ長岡", ["ハイブ長岡"]],
+  ["ハイブ", ["ハイブ長岡"]],
+  ["長岡リリックホール", ["ハイブ長岡", "県立近代美術館"]],
+  ["リリックホール", ["ハイブ長岡", "県立近代美術館"]],
+  ["リリック", ["ハイブ長岡", "県立近代美術館"]],
+  ["長岡技術科学大学", ["技大前"]],
+  ["長岡技科大", ["技大前"]],
+  ["技術科学大学", ["技大前"]],
+  ["技科大", ["技大前"]],
+  ["技大", ["技大前"]],
   ["長岡西病院", ["長岡西病院前"]],
+  ["長岡市立劇場", ["市立劇場前"]],
+  ["市立劇場", ["市立劇場前"]],
   ["イオン長岡", ["イオン長岡店前"]],
   ["長岡イオン", ["イオン長岡店前"]],
+  ["イオン長岡店", ["イオン長岡店前"]],
   ["丘陵公園", ["越後丘陵公園"]],
   ["国営越後丘陵公園", ["越後丘陵公園"]],
   ["長岡造形大学", ["長岡造形大学前"]],
@@ -147,13 +163,21 @@ const searchAliases = [
   ["北長岡駅", ["北長岡駅角"]]
 ];
 
-// Facility coordinates are sourced separately from GTFS stops; see docs/data-sources.md.
+// Facility coordinates and access stop points are tracked in docs/data-sources.md.
 const landmarks = [
   { name: "長岡駅", aliases: ["長岡駅"], stopNames: ["長岡駅前", "長岡駅東口"], lat: 37.447321, lon: 138.854195 },
   { name: "アオーレ長岡", aliases: ["アオーレ"], stopNames: ["アオーレ長岡前", "長岡駅前"], lat: 37.446389, lon: 138.851111 },
   { name: "リバーサイド千秋", aliases: ["リバーサイド", "千秋"], stopNames: ["センタープラザ前", "日赤病院前"], lat: 37.460722, lon: 138.826750 },
   { name: "長岡赤十字病院", aliases: ["日赤", "赤十字"], stopNames: ["日赤病院前"], lat: 37.460056, lon: 138.82917 },
-  { name: "立川綜合病院", aliases: ["立川", "立川総合病院"], stopNames: ["立川綜合病院"], lat: 37.422940, lon: 138.858891 }
+  { name: "立川綜合病院", aliases: ["立川", "立川総合病院"], stopNames: ["立川綜合病院"], lat: 37.422940, lon: 138.858891 },
+  { name: "長岡中央綜合病院", aliases: ["中央綜合病院", "中央病院"], stopNames: ["長岡中央綜合病院"], lat: 37.450382, lon: 138.878480, accessPoint: true },
+  { name: "ハイブ長岡", aliases: ["ハイブ"], stopNames: ["ハイブ長岡"], lat: 37.462151, lon: 138.828030, accessPoint: true },
+  { name: "長岡リリックホール", aliases: ["リリックホール", "リリック"], stopNames: ["ハイブ長岡", "県立近代美術館"], lat: 37.463107, lon: 138.829083, accessPoint: true },
+  { name: "長岡造形大学", aliases: ["造形大学"], stopNames: ["長岡造形大学前"], lat: 37.467301, lon: 138.828220, accessPoint: true },
+  { name: "長岡技術科学大学", aliases: ["長岡技科大", "技科大", "技大"], stopNames: ["技大前"], lat: 37.427540, lon: 138.780060, accessPoint: true },
+  { name: "イオン長岡店", aliases: ["イオン長岡", "長岡イオン"], stopNames: ["イオン長岡店前"], lat: 37.454365, lon: 138.824100, accessPoint: true },
+  { name: "長岡西病院", aliases: ["西病院"], stopNames: ["長岡西病院前"], lat: 37.450501, lon: 138.815520, accessPoint: true },
+  { name: "長岡市立劇場", aliases: ["市立劇場"], stopNames: ["市立劇場前"], lat: 37.435771, lon: 138.839540, accessPoint: true }
 ];
 
 function landmarkSelection(landmark) {

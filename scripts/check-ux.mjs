@@ -85,6 +85,11 @@ assert(state.journeys.length > 1);
 assert.equal(state.journeys[0].destinationStop.name, "センタープラザ前");
 assert(!state.journeys.some((j) => j.destinationStop.name === "イオン長岡店前"));
 assert(els.result.innerHTML.includes("日赤病院前"));
+for (const name of ["長岡中央綜合病院", "ハイブ長岡", "長岡リリックホール", "長岡造形大学", "長岡技術科学大学", "イオン長岡店", "長岡西病院", "長岡市立劇場"]) {
+  assert(landmarks.some((landmark) => landmark.name === name), \`\${name} must be available as a map landmark\`);
+}
+assert.deepEqual(landmarkSelection(landmarks.find((l) => l.name === "長岡リリックホール")).stopNames, ["ハイブ長岡", "県立近代美術館"]);
+assert.deepEqual(landmarkSelection(landmarks.find((l) => l.name === "長岡技術科学大学")).stopNames, ["技大前"]);
 showJourney(1);
 assert.equal(state.activeJourneyKey, journeyKey(state.journeys[1]));
 assert(els.result.querySelector("#journey-detail").innerHTML.includes(formatGtfsTime(state.journeys[1].departure)));
