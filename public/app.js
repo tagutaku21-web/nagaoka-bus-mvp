@@ -705,6 +705,18 @@ function routeSignKind(segment, index, lastIndex) {
   return segment.kind === "second" ? "via second" : "via";
 }
 
+function routeLineStyle(segment) {
+  const secondLeg = segment.kind === "second";
+  return {
+    color: secondLeg ? "#2f765f" : "#29476f",
+    weight: 5,
+    opacity: 0.72,
+    lineCap: "round",
+    lineJoin: "round",
+    dashArray: segment.kind === "first" ? "8 8" : ""
+  };
+}
+
 function drawRouteSigns(segments) {
   if (!state.map || !state.routeLayer) return;
 
@@ -714,6 +726,9 @@ function drawRouteSigns(segments) {
     const stops = routeStops(segment.stops || []);
     if (stops.length < 2) continue;
     const lastIndex = stops.length - 1;
+    const latLngs = stops.map((stop) => [stop.lat, stop.lon]);
+
+    L.polyline(latLngs, routeLineStyle(segment)).addTo(state.routeLayer);
 
     stops.forEach((stop, index) => {
       if (segment.kind === "second" && index === 0) return;
@@ -735,7 +750,7 @@ function drawRouteSigns(segments) {
 
   if (bounds.length) {
     state.map.fitBounds(bounds, { padding: [48, 48], maxZoom: 14 });
-    els.mapSummary.textContent = "通るバス停を地図に表示中";
+    els.mapSummary.textContent = "通るバス停とルート線を地図に表示中";
   }
 }
 
