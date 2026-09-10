@@ -692,6 +692,8 @@ function routeStops(stops) {
 }
 
 function routeSignLabel(segment, index, lastIndex) {
+  if (index === 0 && segment.kind === "timetable") return "乗車";
+  if (index === lastIndex && segment.kind === "timetable") return "終点";
   if (index === 0 && segment.kind !== "second") return "出発";
   if (index === lastIndex && segment.kind === "first") return "乗換";
   if (index === lastIndex) return "到着";
@@ -699,6 +701,8 @@ function routeSignLabel(segment, index, lastIndex) {
 }
 
 function routeSignKind(segment, index, lastIndex) {
+  if (index === 0 && segment.kind === "timetable") return "start";
+  if (index === lastIndex && segment.kind === "timetable") return "goal";
   if (index === 0 && segment.kind !== "second") return "start";
   if (index === lastIndex && segment.kind === "first") return "transfer";
   if (index === lastIndex) return "goal";
@@ -759,6 +763,28 @@ function drawTransferRoute(transfer) {
     { stops: transfer.firstLeg.pathStops, kind: "first" },
     { stops: transfer.secondLeg.pathStops, kind: "second" }
   ]);
+}
+
+function tripStopsFrom(row) {
+  const times = state.data.stopTimesByTrip[row.tripId] || [];
+  const startIndex = times.findIndex((time, index) => (
+    time.stopId === row.stop.id && (time.sequence ?? index) === row.sequence
+  ));
+  const fallbackIndex = startIndex === -1 ? times.findIndex((time) => time.stopId === row.stop.id) : startIndex;
+  if (fallbackIndex === -1) return [];
+  return times.slice(fallbackIndex).map((time) => state.stopById.get(time.stopId)).filter(Boolean);
+}
+
+function drawTimetableRoute(row) {
+  const stops = tripStopsFrom(row);
+  if (stops.length < 2) {
+    els.mapSummary.textContent = "この便の終点までのルートを表示できません";
+    return;
+  }
+  drawRouteSigns([{ stops, kind: "timetable" }]);
+  const lastStop = stops[stops.length - 1];
+  els.mapSummary.textContent = `${row.stop.name}から${lastStop.name}までの停留所順を表示中`;
+  document.querySelector(".map-panel").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 
@@ -1202,6 +1228,7 @@ function renderTimetable(stop) {
           <strong>${escapeHtml(routeGroup.headsign)} 方面</strong>
           <small>${escapeHtml(routeGroup.routeName)}</small>
           <div class="timetable-times">${routeGroup.rows.map((row) => `<span>${formatGtfsTime(row.departure)}</span>`).join("")}</div>
+          <button type="button" class="route-preview-button" data-route-trip="${escapeHtml(routeGroup.rows[0].tripId)}" data-route-stop="${escapeHtml(routeGroup.rows[0].stop.id)}" data-route-sequence="${escapeHtml(routeGroup.rows[0].sequence)}">この先のルートを見る</button>
         </div>`).join("")}
       </section>`).join("")}
     </div>
@@ -1219,6 +1246,15 @@ function renderTimetable(stop) {
       els.result.querySelectorAll("[data-timetable-panel]").forEach((panel) => {
         panel.classList.toggle("hidden", panel.dataset.timetablePanel !== index);
       });
+    });
+  });
+  els.result.querySelectorAll("[data-route-trip]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const sequence = Number(button.dataset.routeSequence);
+      const row = rows.find((item) => item.tripId === button.dataset.routeTrip && item.stop.id === button.dataset.routeStop && item.sequence === sequence);
+      if (!row) return;
+      els.result.querySelectorAll("[data-route-trip]").forEach((item) => item.classList.toggle("is-active", item === button));
+      drawTimetableRoute(row);
     });
   });
   els.result.querySelector("[data-timetable-origin]")?.addEventListener("click", () => {

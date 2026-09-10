@@ -39,6 +39,7 @@ const data = JSON.parse(await readFile(new URL('../public/data/gtfs-index.json',
 const source = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/init\(\)\.catch\([\s\S]*$/, '');
 const styles = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
 assert(source.includes('L.polyline(latLngs, routeLineStyle(segment))'), 'Route map should draw a visible line through stop order');
+assert(source.includes('function drawTimetableRoute(row)'), 'Timetable route preview should be available');
 assert(styles.includes('.timetable-group.hidden { display: none; }'), 'Inactive timetable direction panels must be hidden by CSS');
 const context = vm.createContext({ document, console, Intl, assert, data, setInterval() {}, navigator: {} });
 vm.runInContext(source + `
@@ -135,6 +136,7 @@ assert(els.result.innerHTML.includes("上り下り"));
 assert(els.result.innerHTML.includes("バス停に貼ってある時刻表"));
 assert(els.result.innerHTML.includes("方面"));
 assert(els.result.innerHTML.includes("09:10"));
+assert(els.result.innerHTML.includes("この先のルートを見る"));
 assert(!els.result.innerHTML.includes("のりば番号はデータにありません"));
 
 // An express leaving the transfer stop later must beat a slow earlier bus.
