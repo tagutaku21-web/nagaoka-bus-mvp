@@ -60,6 +60,7 @@ assert(state.journeys.some((j) => j.transfers === 0));
 assert(els.result.innerHTML.includes("指定日時"));
 assert(els.result.innerHTML.includes('09:10'));
 assert(els.result.querySelector("#journey-detail").innerHTML.includes("乗る場所を地図で見る"));
+assert(!els.result.querySelector("#journey-detail").innerHTML.includes("のりば番号はデータにありません"));
 const previousDestination = state.destination;
 selectOrigin(findStopByName("長岡駅東口"));
 assert.equal(state.destination, previousDestination, "Changing origin must preserve destination");
@@ -133,6 +134,7 @@ assert(els.result.innerHTML.includes("上り下り"));
 assert(els.result.innerHTML.includes("バス停に貼ってある時刻表"));
 assert(els.result.innerHTML.includes("方面"));
 assert(els.result.innerHTML.includes("09:10"));
+assert(!els.result.innerHTML.includes("のりば番号はデータにありません"));
 
 // An express leaving the transfer stop later must beat a slow earlier bus.
 state.data = { calendar: { daily: { startDate: "20260903", endDate: "20260903", thursday: true } }, calendarDates: {},

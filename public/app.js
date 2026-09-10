@@ -1008,7 +1008,11 @@ function searchJourneys(date) {
 }
 
 function platformLabel(stop) {
-  return stop.platform ? `${stop.platform}番のりば` : "のりば番号はデータにありません";
+  return stop.platform ? `${stop.platform}番のりば` : "";
+}
+
+function stopMetaLabel(stop) {
+  return [stop.name, platformLabel(stop)].filter(Boolean).join(" · ");
 }
 
 function routeName(leg) {
@@ -1178,7 +1182,7 @@ function renderTimetable(stop) {
     <div class="timetable-list" aria-label="${escapeHtml(stop.name)} の時刻表">
       ${groups.map((group, groupIndex) => `<section class="timetable-group${groupIndex === 0 ? "" : " hidden"}" data-timetable-panel="${groupIndex}">
         <h3>${escapeHtml(timetableSideLabel(group, groupIndex, groups.length))}</h3>
-        <p>${escapeHtml(group.stop.name)} · ${escapeHtml(platformLabel(group.stop))}<br>${escapeHtml(group.routeNames.join(" / ") || "路線名未設定")}</p>
+        <p>${escapeHtml(stopMetaLabel(group.stop))}<br>${escapeHtml(group.routeNames.join(" / ") || "路線名未設定")}</p>
         ${timetableRouteGroups(group.rows).map((routeGroup) => `<div class="timetable-route">
           <strong>${escapeHtml(routeGroup.headsign)} 方面</strong>
           <small>${escapeHtml(routeGroup.routeName)}</small>
@@ -1215,11 +1219,12 @@ function renderTimetable(stop) {
 function legDetails(leg, index) {
   const from = leg.originStop || leg.transferStop;
   const to = leg.destinationStop || leg.transferStop;
+  const platform = platformLabel(from);
   return `<div class="leg-detail">
     <p><strong>${index + 1}本目 · ${formatGtfsTime(leg.departure)}発 → ${formatGtfsTime(leg.arrival)}着</strong></p>
     <p>${escapeHtml(from.name)} → ${escapeHtml(to.name)}</p>
     <p><strong>${escapeHtml(leg.headsign || "行先表示は現地で確認")}</strong></p>
-    <p>${escapeHtml(platformLabel(from))}</p>
+    ${platform ? `<p>${escapeHtml(platform)}</p>` : ""}
     <p class="meta">${escapeHtml(routeName(leg))}</p>
     <button type="button" class="secondary-button" data-boarding-index="${index}">乗る場所を地図で見る</button>
   </div>`;
@@ -1246,7 +1251,7 @@ function showJourney(index, { drawMap = true } = {}) {
       if (!state.map) return;
       state.map.setView([stop.lat, stop.lon], 18);
       const panel = document.createElement("div");
-      panel.textContent = `${stop.name} · ${platformLabel(stop)} · ${leg.headsign || routeName(leg)}`;
+      panel.textContent = [stopMetaLabel(stop), leg.headsign || routeName(leg)].filter(Boolean).join(" · ");
       L.popup().setLatLng([stop.lat, stop.lon]).setContent(panel).openOn(state.map);
       document.querySelector(".map-panel").scrollIntoView({ behavior: "smooth", block: "start" });
     });
