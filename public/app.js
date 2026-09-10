@@ -306,7 +306,7 @@ function renderFrequentStops() {
 
     const timetableButton = document.createElement("button");
     timetableButton.type = "button";
-    timetableButton.textContent = "時刻表";
+    timetableButton.textContent = "時刻表・ルート";
     timetableButton.addEventListener("click", () => renderTimetableAndShow(item.stop));
 
     row.append(label, originButton, destinationButton, timetableButton);
@@ -476,7 +476,7 @@ function openStopPicker(stop, latLng) {
   const timetableButton = document.createElement("button");
   timetableButton.type = "button";
   timetableButton.className = "secondary-button stop-timetable-button";
-  timetableButton.textContent = "このバス停の時刻表を見る";
+  timetableButton.textContent = "このバス停の時刻表・ルートを見る";
   timetableButton.addEventListener("click", () => {
     state.map.closePopup();
     renderTimetableAndShow(stop);
@@ -1175,7 +1175,7 @@ function renderTimetable(stop) {
   if (!state.data || !stop) return;
   const date = selectedDateTime();
   if (!Number.isFinite(date.getTime())) {
-    invalidateResults("時刻表を見るには日付と時刻を入力してください。");
+    invalidateResults("時刻表・ルートを見るには日付と時刻を入力してください。");
     return;
   }
 
@@ -1194,11 +1194,11 @@ function renderTimetable(stop) {
   const platformNote = stopGroupIds(stop).length > 1
     ? `<p class="facility-note">${escapeHtml(stop.name)} は ${stopGroupIds(stop).length}乗り場をまとめています。上り/下り相当の切替で、実際に見るバス停側を選んでください。</p>`
     : "";
-  els.status.textContent = `${stop.name} の時刻表 · ${basis}（日本時間）`;
+  els.status.textContent = `${stop.name} の時刻表・ルート · ${basis}（日本時間）`;
 
   if (!rows.length) {
     const inRange = dateInFeedRange(date);
-    els.result.innerHTML = `<h2>${escapeHtml(stop.name)} の時刻表</h2>
+    els.result.innerHTML = `<h2>${escapeHtml(stop.name)} の時刻表・ルート</h2>
       <p class="meta">${basis}（日本時間）の全便<br>GTFSの静的時刻表に基づく予定です。遅延・運休は反映されません。</p>
       ${platformNote}
       <div class="next-card"><h3>${inRange ? "この日の便が見つかりません" : "この日付の時刻表データがありません"}</h3>
@@ -1206,10 +1206,10 @@ function renderTimetable(stop) {
     return;
   }
 
-  els.result.innerHTML = `<h2>${escapeHtml(stop.name)} の時刻表</h2>
+  els.result.innerHTML = `<h2>${escapeHtml(stop.name)} の時刻表・ルート</h2>
     <p class="meta">${basis}（日本時間）の全便<br>GTFSの静的時刻表に基づく予定です。遅延・運休は反映されません。</p>
     ${platformNote}
-    <p class="meta">今の時刻で絞り込まず、バス停に貼ってある時刻表に近い形で表示します。GTFSに正式な上り/下り名がないため、乗り場側と行先で切り替えます。</p>
+    <p class="meta">今の時刻で絞り込まず、バス停に貼ってある時刻表に近い形で表示します。各方面の「この先のルートを見る」で、終点までの停留所順も地図に出せます。</p>
     <div class="timetable-actions">
       <button type="button" class="secondary-button" data-timetable-origin>出発にする</button>
       <button type="button" class="secondary-button" data-timetable-destination>目的地にする</button>
