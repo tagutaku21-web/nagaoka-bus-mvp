@@ -14,6 +14,22 @@ const feeds = [
     url: process.env.TSUBAME_GTFS_URL || "https://api.gtfs-data.jp/v2/organizations/tsubamecity/feeds/tsubame_bus/files/feed.zip?rid=current"
   },
   {
+    id: "murakami",
+    url: process.env.MURAKAMI_GTFS_URL || "https://api.gtfs-data.jp/v2/organizations/murakamicity/feeds/murakamisicommunitybus/files/feed.zip?rid=current"
+  },
+  {
+    id: "kamo",
+    url: process.env.KAMO_GTFS_URL || "https://api.gtfs-data.jp/v2/organizations/kamocity/feeds/kamonbus/files/feed.zip?rid=current"
+  },
+  {
+    id: "joetsu",
+    url: process.env.JOETSU_GTFS_URL || "https://api.gtfs-data.jp/v2/organizations/joetsucity/feeds/joetsu/files/feed.zip?rid=current"
+  },
+  {
+    id: "itoigawa",
+    url: process.env.ITOIGAWA_GTFS_URL || "https://api.gtfs-data.jp/v2/organizations/itoigawabus/feeds/itoigawabus/files/feed.zip?rid=current"
+  },
+  {
     id: "niigata",
     files: [
       {

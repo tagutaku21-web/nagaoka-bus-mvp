@@ -61,7 +61,8 @@ function parseCsv(text) {
     rows.push(row);
   }
 
-  const [headers = [], ...body] = rows.filter((line) => line.some((cell) => cell !== ""));
+  const [rawHeaders = [], ...body] = rows.filter((line) => line.some((cell) => cell !== ""));
+  const headers = rawHeaders.map((header, index) => index === 0 ? header.replace(/^\uFEFF/, "") : header);
   return body.map((line) => Object.fromEntries(headers.map((header, index) => [header, line[index] ?? ""])));
 }
 

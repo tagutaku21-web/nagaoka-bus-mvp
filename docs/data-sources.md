@@ -49,6 +49,19 @@
 
 燕市のランドマーク・施設名補正は未追加。公式アクセス情報とGTFS停留所名の一致を確認してから追加する。
 
+## 2026-09-11 新潟県内の追加GTFS
+
+GTFSデータリポジトリで公開されている有効期間内のデータから追加した。三条市循環バスぐるっとさん、見附市コミュニティバスは確認時点で有効期限切れのため未追加。
+
+| 地域 | 取得URL | ライセンス | 有効期間 | 今回の取り込み結果 |
+| --- | --- | --- | --- | --- |
+| 村上市 | https://api.gtfs-data.jp/v2/organizations/murakamicity/feeds/murakamisicommunitybus/files/feed.zip?rid=current | CC BY 4.0 | 2026-07-30 から 2027-07-29 | routes 14 / stops 314 / trips 119 |
+| 加茂市 | https://api.gtfs-data.jp/v2/organizations/kamocity/feeds/kamonbus/files/feed.zip?rid=current | CC BY 4.0 | 2026-06-01 から 2027-05-31 | routes 6 / stops 128 / trips 50 |
+| 上越市 | https://api.gtfs-data.jp/v2/organizations/joetsucity/feeds/joetsu/files/feed.zip?rid=current | CC BY 2.1 JP | 2026-04-01 から 2027-03-31 | routes 7 / stops 272 / trips 50 |
+| 糸魚川バス | https://api.gtfs-data.jp/v2/organizations/itoigawabus/feeds/itoigawabus/files/feed.zip?rid=current | CC BY 4.0 | 2026-07-31 から 2027-03-31 | routes 16 / stops 586 / trips 294 |
+
+糸魚川バスの `stops.txt` はUTF-8 BOM付きだったため、`scripts/import-gtfs.mjs` で先頭ヘッダーのBOMを除去するようにした。
+
 ## 新潟市 区バス・住民バスGTFS-JP
 
 - 新潟市公式ページ: https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.html
