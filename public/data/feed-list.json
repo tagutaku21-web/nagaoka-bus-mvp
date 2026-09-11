@@ -28,5 +28,20 @@
     "sourceUrl": "https://www.city.tsubame.niigata.jp/soshiki/toshi_seibi/3/6/12634.html",
     "officialTimetableUrl": "https://www.city.tsubame.niigata.jp/soshiki/toshi_seibi/3/6/12634.html",
     "note": "燕市コミュニティバスのGTFSを加工表示しています。実際の運行・乗り場は公式情報も確認してください。"
+  },
+  {
+    "id": "niigata",
+    "name": "新潟市",
+    "eyebrow": "新潟市の区バス・住民バスを探す",
+    "title": "新潟市で、どこへ？",
+    "sampleLabel": "検索例: 新潟駅 → 下木戸",
+    "sampleOrigin": "新潟駅",
+    "sampleDestination": "下木戸",
+    "dataUrl": "./data/feeds/niigata.json",
+    "center": [37.916192, 139.036413],
+    "sourceLabel": "新潟市 区バス・住民バス GTFS-JP",
+    "sourceUrl": "https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.html",
+    "officialTimetableUrl": "https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.html",
+    "note": "新潟交通の市内一般路線・ときライナー系は含めず、新潟市公式の区バス・住民バスのみを表示しています。"
   }
 ]

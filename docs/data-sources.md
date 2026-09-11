@@ -49,6 +49,21 @@
 
 燕市のランドマーク・施設名補正は未追加。公式アクセス情報とGTFS停留所名の一致を確認してから追加する。
 
+## 新潟市 区バス・住民バスGTFS-JP
+
+- 新潟市公式ページ: https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.html
+- 公式ページタイトル: GTFS-JPデータ（区バス・住民バス）
+- 公式ページ上のライセンス表示: CC-BY（表示）
+- 公式ページ本文のライセンスリンク: クリエイティブ・コモンズ・ライセンス 表示 2.1 日本
+- 取得URL（区バス）: https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.files/20260401_bus-kubusniigatacity-niigata-jp.zip
+- 取得URL（住民バス）: https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.files/20260401_bus-niigatacity-niigata-jp.zip
+- 区バスの注意書き: 新潟交通延伸路線及び北区バス冬季臨時便は除く
+- 住民バスの注意書き: 新潟交通延伸路線は除く
+- 今回の取り込み結果（区バス）: routes 14 / stops 713 / trips 147
+- 今回の取り込み結果（住民バス）: routes 7 / stops 266 / trips 67
+
+新潟市地域として2つのGTFSを統合して表示する。内部IDの衝突を避けるため、取り込み後に区バスは `niigata-ward:`、住民バスは `niigata-residents:` の接頭辞を付ける。新潟交通の市内一般路線、ときライナー系は今回の対象外。
+
 
 ## 2026-09-06 施設検索の見直し
 
