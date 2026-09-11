@@ -33,6 +33,22 @@
 
 このMVPでは、静的GTFSを読み込んで直通検索を検証するところまでに限定する。
 
+## 燕市コミュニティバスGTFS
+
+- GTFSデータリポジトリ組織ID: `tsubamecity`
+- feed_id: `tsubame_bus`
+- feed_name: 燕市コミュニティバス
+- 公開元: 燕市
+- 公式ページ: https://www.city.tsubame.niigata.jp/soshiki/toshi_seibi/3/6/12634.html
+- 取得URL: https://api.gtfs-data.jp/v2/organizations/tsubamecity/feeds/tsubame_bus/files/feed.zip?rid=current
+- ライセンス: CC BY 4.0
+- license_url: https://creativecommons.org/licenses/by/4.0/deed.ja
+- 有効期間: 2026-09-01 から 2027-08-31
+- 今回の取り込み結果: routes 3 / stops 90 / trips 32
+- GTFS-Realtime: なし
+
+燕市のランドマーク・施設名補正は未追加。公式アクセス情報とGTFS停留所名の一致を確認してから追加する。
+
 
 ## 2026-09-06 施設検索の見直し
 

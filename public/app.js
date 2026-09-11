@@ -1,5 +1,7 @@
 const state = {
   data: null,
+  feedList: [],
+  activeFeed: null,
   origin: null,
   destination: null,
   destinationDisplayName: "",
@@ -37,6 +39,10 @@ const els = {
   resultPanel: document.querySelector(".result-panel"),
   frequentStopsList: document.querySelector("#frequent-stops-list"),
   resultEmpty: document.querySelector("#result-empty"),
+  feedSelect: document.querySelector("#feed-select"),
+  appTitle: document.querySelector("#app-title"),
+  eyebrow: document.querySelector(".eyebrow"),
+  dataCredit: document.querySelector("#data-credit"),
   timeMode: document.querySelector("#time-mode"),
   timeFields: document.querySelector("#time-fields"),
   mapToggle: document.querySelector("#map-toggle"),
@@ -248,6 +254,11 @@ function stopsByNames(names) {
   );
 }
 
+function activeLandmarks() {
+  if (state.activeFeed?.id === "nagaoka") return landmarks;
+  return landmarks.filter((landmark) => landmark.feedIds?.includes(state.activeFeed?.id));
+}
+
 function frequentStops(limit = 8) {
   const countsByName = new Map();
   for (const times of Object.values(state.data.stopTimesByTrip)) {
@@ -362,7 +373,7 @@ function renderCandidates(container, stops, onPick, query = "", includeLandmarks
   container.innerHTML = "";
   container.className = "candidate-list";
   if (includeLandmarks && normalize(query)) {
-    for (const landmark of landmarks.filter((item) => [item.name, ...item.aliases].some((name) => normalize(name).includes(normalize(query)) || normalize(query) === normalize(name)))) {
+    for (const landmark of activeLandmarks().filter((item) => [item.name, ...item.aliases].some((name) => normalize(name).includes(normalize(query)) || normalize(query) === normalize(name)))) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "facility-candidate";
@@ -539,10 +550,10 @@ function useSampleRoute() {
     return;
   }
 
-  const origin = findStopByName("長岡駅前");
-  const destination = findStopByName("日赤病院前");
+  const origin = findStopByName(state.activeFeed?.sampleOrigin);
+  const destination = findStopByName(state.activeFeed?.sampleDestination);
   if (!origin || !destination) {
-    els.status.textContent = "検証用ルートの停留所が見つかりませんでした。GTFSデータを確認してください。";
+    els.status.textContent = "検索例の停留所が見つかりませんでした。この地域のGTFSデータを確認してください。";
     return;
   }
 
@@ -843,7 +854,7 @@ function plotStops() {
 function plotLandmarks() {
   state.landmarkLayer.clearLayers();
 
-  for (const landmark of landmarks) {
+  for (const landmark of activeLandmarks()) {
     const stops = stopsByNames(landmark.stopNames);
     if (!stops.length) continue;
 
@@ -1439,12 +1450,52 @@ function wireSearch() {
   document.addEventListener("visibilitychange", refreshNow);
 }
 
-async function init() {
-  todayInputs();
-  els.searchButton.disabled = true;
+function renderFeedOptions() {
+  els.feedSelect.innerHTML = "";
+  for (const feed of state.feedList) {
+    const option = document.createElement("option");
+    option.value = feed.id;
+    option.textContent = feed.name;
+    els.feedSelect.append(option);
+  }
+}
 
-  const response = await fetch("./data/gtfs-index.json");
-  if (!response.ok) throw new Error("時刻表を取得できません。再読み込みしてください。");
+function resetSelections() {
+  state.origin = null;
+  state.destination = null;
+  state.destinationDisplayName = "";
+  state.journeys = [];
+  state.activeJourneyKey = "";
+  state.hasResults = false;
+  els.originSearch.value = "";
+  els.destinationSearch.value = "";
+  els.result.innerHTML = "";
+  els.result.classList.add("hidden");
+  els.resultEmpty.classList.remove("hidden");
+  clearCandidates();
+  clearRouteSigns();
+}
+
+function updateFeedCopy() {
+  if (!state.activeFeed) return;
+  els.eyebrow.textContent = state.activeFeed.eyebrow || `${state.activeFeed.name}のバスを探す`;
+  els.appTitle.textContent = state.activeFeed.title || "どこから、どこへ？";
+  els.sampleRouteButton.textContent = state.activeFeed.sampleLabel || "検索例を見る";
+  els.dataCredit.innerHTML = `時刻表: <a href="${escapeHtml(state.activeFeed.sourceUrl)}">${escapeHtml(state.activeFeed.sourceLabel)}</a> を加工表示 · 実際の運行・乗り場・時刻と異なる場合があります。ご利用前に <a href="${escapeHtml(state.activeFeed.officialTimetableUrl || state.activeFeed.sourceUrl)}">公式情報</a> も確認してください。 ${escapeHtml(state.activeFeed.note || "")}`;
+}
+
+async function loadFeed(feedId, { reset = true } = {}) {
+  const feed = state.feedList.find((item) => item.id === feedId) || state.feedList[0];
+  if (!feed) throw new Error("地域データの設定がありません。");
+
+  state.activeFeed = feed;
+  els.feedSelect.value = feed.id;
+  updateFeedCopy();
+  els.searchButton.disabled = true;
+  els.status.textContent = `${feed.name}のGTFSデータを読み込み中です。`;
+
+  const response = await fetch(feed.dataUrl);
+  if (!response.ok) throw new Error(`${feed.name}の時刻表を取得できません。再読み込みしてください。`);
   state.data = await response.json();
   state.stopById = new Map(state.data.stops.map((stop) => [stop.id, stop]));
   state.stopIdsByName = new Map();
@@ -1453,19 +1504,35 @@ async function init() {
     state.stopIdsByName.get(stop.name).push(stop.id);
   }
 
-  initMap();
+  if (reset) resetSelections();
   plotStops();
   plotLandmarks();
   renderFrequentStops();
-  wireSearch();
   updateLabels();
 
   if (!state.data.stops.length) {
-    els.status.textContent = "まだGTFSが取り込まれていません。READMEの手順で public/data/gtfs-index.json を生成してください。";
+    els.status.textContent = `${feed.name}のGTFSデータに停留所がありません。`;
     return;
   }
 
-  els.status.textContent = `${state.data.stops.length}停留所を読み込みました。出発バス停を検索するか、地図上の点を押してください。`;
+  els.status.textContent = `${feed.name}: ${state.data.stops.length}停留所を読み込みました。出発バス停を検索するか、地図上の点を押してください。`;
+}
+
+async function init() {
+  todayInputs();
+  els.searchButton.disabled = true;
+
+  const feedListResponse = await fetch("./data/feed-list.json");
+  if (!feedListResponse.ok) throw new Error("地域一覧を取得できません。再読み込みしてください。");
+  state.feedList = await feedListResponse.json();
+  renderFeedOptions();
+
+  initMap();
+  wireSearch();
+  els.feedSelect.addEventListener("change", () => loadFeed(els.feedSelect.value).catch((error) => {
+    els.status.textContent = `読み込みに失敗しました: ${error.message}`;
+  }));
+  await loadFeed(state.feedList[0]?.id);
 }
 
 init().catch((error) => {

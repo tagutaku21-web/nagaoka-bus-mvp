@@ -3,8 +3,8 @@ import { readFile } from "node:fs/promises";
 const index = JSON.parse(await readFile(new URL("../public/data/gtfs-index.json", import.meta.url), "utf8"));
 const originName = "長岡駅前";
 const destinationName = "日赤病院前";
-const dateKey = "20260903";
-const dayName = "thursday";
+const dateKey = "20260911";
+const dayName = "friday";
 const nowMinutes = 9 * 60;
 
 function parseGtfsTime(time) {

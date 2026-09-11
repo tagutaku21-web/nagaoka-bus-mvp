@@ -1,10 +1,11 @@
-# 長岡バス直感検索 MVP
+# バス直感検索 MVP
 
-長岡市・越後交通のGTFSを使い、「出発地・目的地を選ぶ → 直通・1回乗り換えを比較する」試作MVPです。
+長岡市・越後交通、燕市コミュニティバスのGTFSを使い、「地域を選ぶ → 出発地・目的地を選ぶ → 直通・1回乗り換えを比較する」試作MVPです。
 
 ## できること
 
 - GTFS静的データの読み込み
+- 地域切り替え
 - バス停一覧の表示
 - バス停ごとの直通目的地候補の生成
 - 今日有効な `service_id` の判定
@@ -23,29 +24,20 @@
 
 ## GTFSの用意
 
-長岡市公式ページでは公共交通GTFSデータがオープンデータとして案内されています。越後交通のGTFSは「ながおかバスi」側で公開されています。
-
-今回の検証では、以下のURLから越後交通 長岡地区GTFSを取得しました。
-
-```bash
-mkdir -p data/raw data/gtfs/nagaoka
-curl -L --fail --show-error --output data/raw/nagaoka-gtfs.zip https://bus-vision.jp/gtfs_v2/nagaoka/gtfsFeed
-unzip -oq data/raw/nagaoka-gtfs.zip -d data/gtfs/nagaoka
-GTFS_DIR=data/gtfs/nagaoka npm run import:gtfs
-npm run serve
-```
-
-ブラウザで `http://localhost:4173` を開きます。
-
-`data/` は作業用の取得・展開場所です。公開するアプリは `public/data/gtfs-index.json` を読み込みます。
+長岡市公式ページでは公共交通GTFSデータがオープンデータとして案内されています。越後交通のGTFSは「ながおかバスi」側で公開されています。燕市コミュニティバスはGTFSデータリポジトリで公開されているデータを使います。
 
 取得から取り込みまでまとめて実行する場合は、以下を使います。
 
 ```bash
 npm run update:gtfs
+npm run serve
 ```
 
-`.github/workflows/update-gtfs.yml` は毎日04:20（日本時間）ごろにGTFSを取得し直し、`public/data/gtfs-index.json` に差分がある場合だけコミットします。GitHub Actionsのリポジトリ権限で `GITHUB_TOKEN` に書き込みが許可されている必要があります。
+ブラウザで `http://localhost:4173` を開きます。
+
+`data/` は作業用の取得・展開場所です。公開するアプリは `public/data/feed-list.json` と `public/data/feeds/*.json` を読み込みます。`public/data/gtfs-index.json` は既存チェック用に長岡データを残しています。
+
+`.github/workflows/update-gtfs.yml` は毎日04:20（日本時間）ごろにGTFSを取得し直し、`public/data` に差分がある場合だけコミットします。GitHub Actionsのリポジトリ権限で `GITHUB_TOKEN` に書き込みが許可されている必要があります。
 
 基準ルートが取り込めているかは、以下で確認できます。
 
@@ -68,6 +60,8 @@ npm run check:sample
 - `public/index.html`: 画面
 - `public/styles.css`: 見た目
 - `public/app.js`: 直通検索UI
+- `public/data/feed-list.json`: 地域一覧と出典表示
+- `public/data/feeds/*.json`: 地域別GTFSインデックス
 - `scripts/import-gtfs.mjs`: GTFS取り込み
 - `scripts/serve.mjs`: ローカル確認用サーバー
 - `docs/data-sources.md`: データ元・ライセンス確認メモ
@@ -83,7 +77,7 @@ npm run check:sample
 - 便を選ぶと時刻・行先・実際の乗車停留所を表示。乗車場所ボタンで実際のGTFS座標へ拡大。乗り場番号が欠けている場合は補完・推測せず表示する。
 - スマホの順序は地図 → 検索 → 結果 → よく使うバス停。地図サイズを切替可能。
 - 地図ポップアップと「よく使うバス停」から、その停留所の時刻表を表示。GTFS上の同名乗り場をまとめ、行先・路線名・乗り場番号を表示する。
-- GitHub ActionsでGTFSを定期取得し、差分がある場合だけ `gtfs-index.json` を更新できる。
+- GitHub ActionsでGTFSを定期取得し、差分がある場合だけ地域別データを更新できる。
 
 ### 検証
 

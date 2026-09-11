@@ -1,0 +1,32 @@
+[
+  {
+    "id": "nagaoka",
+    "name": "長岡",
+    "eyebrow": "長岡のバスを探す",
+    "title": "どこから、どこへ？",
+    "sampleLabel": "検索例: 長岡駅前 → 日赤病院前",
+    "sampleOrigin": "長岡駅前",
+    "sampleDestination": "日赤病院前",
+    "dataUrl": "./data/feeds/nagaoka.json",
+    "center": [37.447321, 138.854195],
+    "sourceLabel": "長岡市・越後交通 GTFS",
+    "sourceUrl": "https://www.city.nagaoka.niigata.jp/shisei/cate10/gtfs.html",
+    "officialTimetableUrl": "https://www.echigo-kotsu.co.jp/contents/diagram/route/nagaoka/west.html",
+    "note": "道路に沿ったルートではなく、停留所順を結んだ目安です。"
+  },
+  {
+    "id": "tsubame",
+    "name": "燕市",
+    "eyebrow": "燕市のバスを探す",
+    "title": "燕市で、どこへ？",
+    "sampleLabel": "検索例: 燕駅前 → 分水駅前",
+    "sampleOrigin": "燕駅前",
+    "sampleDestination": "分水駅前",
+    "dataUrl": "./data/feeds/tsubame.json",
+    "center": [37.67367, 138.88239],
+    "sourceLabel": "燕市コミュニティバス GTFS",
+    "sourceUrl": "https://www.city.tsubame.niigata.jp/soshiki/toshi_seibi/3/6/12634.html",
+    "officialTimetableUrl": "https://www.city.tsubame.niigata.jp/soshiki/toshi_seibi/3/6/12634.html",
+    "note": "燕市コミュニティバスのGTFSを加工表示しています。実際の運行・乗り場は公式情報も確認してください。"
+  }
+]

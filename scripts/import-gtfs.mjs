@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const gtfsDir = process.env.GTFS_DIR;
+const outFile = process.env.GTFS_OUTFILE || join(process.cwd(), "public", "data", "gtfs-index.json");
 
 if (!gtfsDir) {
   console.error("GTFS_DIR=/path/to/extracted/gtfs npm run import:gtfs");
@@ -193,7 +194,7 @@ const index = {
 };
 
 await writeFile(
-  join(process.cwd(), "public", "data", "gtfs-index.json"),
+  outFile,
   `${JSON.stringify(index)}\n`,
   "utf8"
 );

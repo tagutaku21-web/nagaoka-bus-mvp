@@ -20,12 +20,12 @@ jobs:
         run: npm run update:gtfs
       - name: Commit updated GTFS index
         run: |
-          if git diff --quiet -- public/data/gtfs-index.json; then
-            echo "GTFS index is already up to date."
+          if git diff --quiet -- public/data; then
+            echo "GTFS data is already up to date."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/gtfs-index.json
+          git add public/data
           git commit -m "Update GTFS timetable data"
           git push

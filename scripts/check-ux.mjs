@@ -51,7 +51,7 @@ for (const stop of data.stops) {
 }
 els.journeyOrder.value = "direct";
 state.timeMode = "scheduled";
-els.rideDate.value = "2026-09-03";
+els.rideDate.value = "2026-09-11";
 els.rideTime.value = "09:00";
 wireSearch();
 
@@ -104,21 +104,21 @@ assert(state.origin.landmark);
 assert.equal(state.destination.name, "長岡駅前");
 assert(state.journeys.length);
 
-els.rideDate.value = "2027-09-03";
+els.rideDate.value = "2027-09-11";
 renderResult();
 assert(els.result.innerHTML.includes("この日付の時刻表データがありません"));
 els.rideDate.value = "";
 renderResult();
 assert.equal(state.hasResults, false);
 assert(els.status.textContent.includes("日付と時刻"));
-els.rideDate.value = "2026-09-03";
+els.rideDate.value = "2026-09-11";
 selectOrigin(findStopByName("長岡駅前"));
 selectDestination(findStopByName("長岡駅前"));
 assert.equal(state.hasResults, false);
 assert(els.status.textContent.includes("同じ"));
 
-const jp = japanNow(new Date("2026-09-03T23:30:00Z"));
-assert.equal(jp.getDate(), 4);
+const jp = japanNow(new Date("2026-09-11T23:30:00Z"));
+assert.equal(jp.getDate(), 12);
 assert.equal(jp.getHours(), 8);
 els.timeMode.value = "now";
 els.timeMode.dispatch("change");
@@ -127,7 +127,7 @@ assert(els.timeFields.hidden);
 assert.equal(yyyymmdd(selectedDateTime()), yyyymmdd(japanNow()));
 
 state.timeMode = "scheduled";
-els.rideDate.value = "2026-09-03";
+els.rideDate.value = "2026-09-11";
 els.rideTime.value = "09:00";
 renderTimetable(findStopByName("長岡駅前"));
 assert(els.result.innerHTML.includes("長岡駅前 の時刻表・ルート"));

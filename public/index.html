@@ -22,6 +22,11 @@
         <p class="eyebrow">長岡のバスを探す</p>
         <h1 id="app-title">どこから、どこへ？</h1>
 
+        <div class="field">
+          <label for="feed-select">地域</label>
+          <select id="feed-select"></select>
+        </div>
+
         <div class="quick-route" aria-label="検索例">
           <button id="sample-route-button" type="button">検索例: 長岡駅前 → 日赤病院前</button>
         </div>
@@ -96,7 +101,7 @@
         </section>
     </main>
 
-    <footer class="data-credit">時刻表: <a href="https://www.city.nagaoka.niigata.jp/shisei/cate10/gtfs.html">長岡市・越後交通 GTFS</a> を加工表示 · 実際の運行・乗り場・時刻と異なる場合があります。ご利用前に <a href="https://www.echigo-kotsu.co.jp/contents/diagram/route/nagaoka/west.html">公式時刻表</a> や現地表示も確認してください。</footer>
+    <footer id="data-credit" class="data-credit">時刻表データを読み込み中です。</footer>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="./app.js"></script>
   </body>
