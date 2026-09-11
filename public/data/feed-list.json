@@ -62,17 +62,17 @@
   {
     "id": "joetsu",
     "name": "上越市",
-    "eyebrow": "上越市の市営バスを探す",
+    "eyebrow": "上越市営バス＋市街地主要路線を探す",
     "title": "上越市で、どこへ？",
-    "sampleLabel": "検索例: ほくほく大島駅前 → 菖蒲センター前",
-    "sampleOrigin": "ほくほく大島駅前",
-    "sampleDestination": "菖蒲センター前",
+    "sampleLabel": "検索例: 高田駅前案内所 → 直江津駅前",
+    "sampleOrigin": "高田駅前案内所",
+    "sampleDestination": "直江津駅前",
     "dataUrl": "./data/feeds/joetsu.json",
     "center": [37.119541, 138.35388],
-    "sourceLabel": "上越市市営バス GTFS",
+    "sourceLabel": "上越市市営バス GTFS / 頸城自動車公式時刻表",
     "sourceUrl": "https://gtfs-data.jp/search?target_feed=joetsucity*joetsu",
-    "officialTimetableUrl": "https://www.city.joetsu.niigata.jp/soshiki/kotsu/",
-    "note": "上越市市営バスのGTFSを加工表示しています。実際の運行・乗り場は公式情報も確認してください。"
+    "officialTimetableUrl": "https://www.marukei-g.com/pages/20/",
+    "note": "上越市営バスGTFSに、頸城自動車公式時刻表をもとにした上越大通り線の主要停留所補完を追加しています。補完部分は主要停留所のみの試験表示です。"
   },
   {
     "id": "itoigawa",
