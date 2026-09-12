@@ -72,7 +72,7 @@
     "sourceLabel": "上越市市営バス GTFS / 頸城自動車公式時刻表",
     "sourceUrl": "https://gtfs-data.jp/search?target_feed=joetsucity*joetsu",
     "officialTimetableUrl": "https://www.marukei-g.com/pages/20/",
-    "note": "上越市営バスGTFSに、頸城自動車公式時刻表をもとにした2番・上越大通り線の試験補完を追加しています。補完部分の停留所位置は概算です。"
+    "note": "上越市営バスGTFSに、頸城自動車公式時刻表をもとにした2番・上越大通り線の試験補完を追加しています。補完部分の地図ピンはOpenStreetMapで位置確認できた停留所だけ表示します。"
   },
   {
     "id": "itoigawa",

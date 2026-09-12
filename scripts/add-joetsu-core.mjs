@@ -10,6 +10,20 @@ const serviceWeekend = `${sourceFeed}:weekend`;
 const routeId = `${sourceFeed}:joetsu-odori-2`;
 const dash = null;
 
+const osmStopLocations = new Map([
+  ["古城公園", { lat: 37.179496, lon: 138.253849 }],
+  ["川原町", { lat: 37.177598, lon: 138.25013 }],
+  ["中央二丁目", { lat: 37.177384, lon: 138.24483 }],
+  ["中央一丁目", { lat: 37.175016, lon: 138.243678 }],
+  ["直江津駅前通り", { lat: 37.17309, lon: 138.243107 }],
+  ["直江津駅前", { lat: 37.171465, lon: 138.243808 }],
+  ["直江津ショッピングセンター前", { lat: 37.171236, lon: 138.236898 }],
+  ["御館橋", { lat: 37.169776, lon: 138.236543 }],
+  ["マルケーバスセンター", { lat: 37.163749, lon: 138.237256 }],
+  ["大手町十字路", { lat: 37.108572, lon: 138.250605 }],
+  ["上越妙高駅前", { lat: 37.082147, lon: 138.248484 }]
+]);
+
 const stopRows = [
   ["fukuhashi-east", "福橋東", 37.1919, 138.2662],
   ["fukuhashi", "福橋", 37.1907, 138.2637],
@@ -76,16 +90,21 @@ const stopRows = [
 const idByName = new Map(stopRows.map(([id, name]) => [name, id]));
 const stopId = (id) => `${sourceFeed}:${id}`;
 
-const stops = stopRows.map(([id, name, lat, lon]) => ({
-  id: stopId(id),
-  code: "",
-  name,
-  description: "頸城自動車公式時刻表をもとにした上越大通り線2番の試験補完",
-  lat,
-  lon,
-  platform: "",
-  sourceFeed
-}));
+const stops = stopRows.map(([id, name]) => {
+  const location = osmStopLocations.get(name);
+  return {
+    id: stopId(id),
+    code: "",
+    name,
+    description: "頸城自動車公式時刻表をもとにした上越大通り線2番の試験補完",
+    lat: location?.lat ?? null,
+    lon: location?.lon ?? null,
+    platform: "",
+    sourceFeed,
+    locationVerified: Boolean(location),
+    locationSource: location ? "OpenStreetMap" : ""
+  };
+});
 
 const route = {
   id: routeId,

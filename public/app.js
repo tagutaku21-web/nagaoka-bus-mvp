@@ -16,7 +16,8 @@ const state = {
   timeMode: "now",
   journeys: [],
   activeJourneyKey: "",
-  hasResults: false
+  hasResults: false,
+  mappableStopCount: 0
 };
 
 const els = {
@@ -569,6 +570,7 @@ function nearestStop(position) {
   };
 
   return state.data.stops
+    .filter(hasMapLocation)
     .map((stop) => ({
       stop,
       distance: distanceMeters(current, stop)
@@ -681,7 +683,10 @@ function updateMarkerStyles() {
 
 function updateMapSummary() {
   if (!state.data) return;
-  els.mapSummary.textContent = `${state.markers.size}停留所を表示中（${state.data.stops.length}乗り場を集約）`;
+  const suffix = state.mappableStopCount < state.data.stops.length
+    ? `位置確認済み / ${state.data.stops.length}乗り場`
+    : `${state.data.stops.length}乗り場を集約`;
+  els.mapSummary.textContent = `${state.markers.size}停留所を表示中（${suffix}）`;
 }
 
 function clearRouteSigns() {
@@ -693,13 +698,20 @@ function routeStops(stops) {
   const route = [];
   const seen = new Set();
   for (const stop of stops) {
-    if (!stop || typeof stop.lat !== "number" || typeof stop.lon !== "number") continue;
+    if (!hasMapLocation(stop)) continue;
     const key = stop.id || `${stop.lat},${stop.lon}`;
     if (seen.has(key)) continue;
     seen.add(key);
     route.push(stop);
   }
   return route;
+}
+
+function hasMapLocation(stop) {
+  return Boolean(stop)
+    && Number.isFinite(stop.lat)
+    && Number.isFinite(stop.lon)
+    && stop.locationVerified !== false;
 }
 
 function routeSignLabel(segment, index, lastIndex) {
@@ -738,6 +750,7 @@ function drawRouteSigns(segments) {
   clearRouteSigns();
   const bounds = [];
   for (const segment of segments) {
+    if ((segment.stops || []).some((stop) => !hasMapLocation(stop))) continue;
     const stops = routeStops(segment.stops || []);
     if (stops.length < 2) continue;
     const lastIndex = stops.length - 1;
@@ -788,8 +801,8 @@ function tripStopsFrom(row) {
 
 function drawTimetableRoute(row) {
   const stops = tripStopsFrom(row);
-  if (stops.length < 2) {
-    els.mapSummary.textContent = "この便の終点までのルートを表示できません";
+  if (stops.length < 2 || stops.some((stop) => !hasMapLocation(stop))) {
+    els.mapSummary.textContent = "この便は停留所位置がそろっていないため、地図表示を省略しています";
     return;
   }
   drawRouteSigns([{ stops, kind: "timetable" }]);
@@ -824,8 +837,10 @@ function plotStops() {
 
   const bounds = [];
   const groups = new Map();
+  const mappableStops = state.data.stops.filter(hasMapLocation);
+  state.mappableStopCount = mappableStops.length;
 
-  for (const stop of state.data.stops) {
+  for (const stop of mappableStops) {
     if (!groups.has(stop.name)) groups.set(stop.name, []);
     groups.get(stop.name).push(stop);
   }
@@ -847,7 +862,7 @@ function plotStops() {
     bounds.push([lat, lon]);
   }
 
-  state.map.fitBounds(bounds, { padding: [24, 24] });
+  if (bounds.length) state.map.fitBounds(bounds, { padding: [24, 24] });
   updateMapSummary();
 }
 
@@ -1311,6 +1326,10 @@ function showJourney(index, { drawMap = true } = {}) {
       const leg = journey.legs[Number(button.dataset.boardingIndex)];
       const stop = leg.originStop || leg.transferStop;
       if (!state.map) return;
+      if (!hasMapLocation(stop)) {
+        els.mapSummary.textContent = "この停留所は地図上の位置を確認できないため、地図移動を省略しています";
+        return;
+      }
       state.map.setView([stop.lat, stop.lon], 18);
       const panel = document.createElement("div");
       panel.textContent = [stopMetaLabel(stop), leg.headsign || routeName(leg)].filter(Boolean).join(" · ");
