@@ -34,11 +34,11 @@ const feeds = [
     files: [
       {
         id: "ward",
-        url: process.env.NIIGATA_WARD_GTFS_URL || "https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.files/20260401_bus-kubusniigatacity-niigata-jp.zip"
+        url: process.env.NIIGATA_WARD_GTFS_URL || "https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.files/20261005_kubus-niigatacity-niigata-jp.zip"
       },
       {
         id: "residents",
-        url: process.env.NIIGATA_RESIDENTS_GTFS_URL || "https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.files/20260401_bus-niigatacity-niigata-jp.zip"
+        url: process.env.NIIGATA_RESIDENTS_GTFS_URL || "https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.files/20261005_bus-niigatacity-niigata-jp.zip"
       }
     ]
   }

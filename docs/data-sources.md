@@ -83,8 +83,8 @@ GTFSデータリポジトリで公開されている有効期間内のデータ�
 - 公式ページタイトル: GTFS-JPデータ（区バス・住民バス）
 - 公式ページ上のライセンス表示: CC-BY（表示）
 - 公式ページ本文のライセンスリンク: クリエイティブ・コモンズ・ライセンス 表示 2.1 日本
-- 取得URL（区バス）: https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.files/20260401_bus-kubusniigatacity-niigata-jp.zip
-- 取得URL（住民バス）: https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.files/20260401_bus-niigatacity-niigata-jp.zip
+- 取得URL（区バス）: https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.files/20261005_kubus-niigatacity-niigata-jp.zip
+- 取得URL（住民バス）: https://www.city.niigata.lg.jp/shisei/seisaku/it/open-data/opendata-kankou/od-busgtfsjp.files/20261005_bus-niigatacity-niigata-jp.zip
 - 区バスの注意書き: 新潟交通延伸路線及び北区バス冬季臨時便は除く
 - 住民バスの注意書き: 新潟交通延伸路線は除く
 - 今回の取り込み結果（区バス）: routes 14 / stops 713 / trips 147
